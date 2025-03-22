@@ -1,187 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>EEG + Game Single Screen</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    /* Reset & global styling */
-    * {
-      margin: 0; padding: 0; box-sizing: border-box;
-      font-family: sans-serif;
-    }
-    body {
-      background: black;
-      overflow: hidden;
-    }
+  <link rel="stylesheet" href="style.css">
 
-    /* Fullscreen game canvas behind everything */
-    #gameCanvas {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      display: block;
-      z-index: 1;
-    }
-
-    /* Top bar with controls */
-    #topBar {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 10px;
-      z-index: 3;  /* above gameCanvas, below floating overlays */
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 10px;
-    }
-    #topBar button,
-    #topBar select,
-    #topBar input[type="range"] {
-      background: #444;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      padding: 6px 10px;
-      cursor: pointer;
-    }
-    #topBar button:disabled,
-    #topBar select:disabled,
-    #topBar input:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    #topBar h1 {
-      margin-right: auto;  /* pushes the other controls to the right */
-      color: white;
-      font-size: 1.2rem;
-    }
-
-    /* EEG waveform canvas (top-left, translucent) */
-    #plotCanvas {
-      position: absolute;
-      top: 70px; left: 10px;
-      width: 25vw;  /* or adjust as you wish */
-      max-width: 400px;
-      height: 20vh;
-      min-height: 100px;
-      background: transparent;
-      pointer-events: none;
-      z-index: 4;  /* above the topBar */
-    }
-
-    /* Brainwave bar graph (top-right, translucent) */
-    #barGraphContainer {
-      position: absolute;
-      top: 70px; right: 10px;
-      width: 25vw;
-      max-width: 300px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 8px;
-      padding: 10px;
-      z-index: 4;
-    }
-    #barGraph {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-evenly;
-      gap: 10px;
-    }
-    .bar-container {
-      text-align: center;
-      color: white;
-      font-size: 0.8rem;
-    }
-    .bar {
-      width: 20px;
-      margin: 0 auto 5px auto;
-      transition: height 0.2s;
-      background: white;
-    }
-    .bar-label {
-      margin-bottom: 4px;
-    }
-    .bar-value {
-      font-size: 0.8rem;
-    }
-
-    /* Status text at the bottom of the bar graph */
-    #statusText {
-      text-align: center;
-      margin-top: 10px;
-      color: white;
-      font-size: 0.85rem;
-    }
-  </style>
 </head>
+
 <body>
-  <!-- Game Canvas -->
-  <canvas id="gameCanvas"></canvas>
-
-  <!-- Top Bar with controls -->
-  <div id="topBar">
-    <h1>EEG + Game</h1>
-    <button id="connectBtn">Connect</button>
-    <button id="disconnectBtn">Disconnect</button>
-    <button id="startBtn">Start</button>
-    <button id="stopBtn">Stop</button>
-
-    <select id="channelSelector">
-      <option value="all">All Channels</option>
-      <option value="ch0">Channel 0</option>
-      <option value="ch1">Channel 1</option>
-      <option value="ch2">Channel 2</option>
-    </select>
-    <label for="betaThresholdSlider" style="color:white;">Beta Threshold:</label>
-    <input type="range" id="betaThresholdSlider" min="0" max="1" step="0.01" value="0.40">
-    <span id="betaThresholdValue">0.40</span>
-    
-    <label for="gainSlider" style="color:white;">Gain:</label>
-    <input type="range" id="gainSlider" min="0.1" max="5" step="0.1" value="1">
-  </div>
-
-  <!-- EEG Waveform (top-left) -->
-  <canvas id="plotCanvas"></canvas>
-
-  <!-- Brainwave Bar Graph (top-right) -->
-  <div id="barGraphContainer">
-    <div id="barGraph">
-      <div class="bar-container">
-        <div class="bar" id="deltaBar"></div>
-        <div class="bar-label">Delta</div>
-        <div class="bar-value" id="deltaValue">0%</div>
+  <div id="mainContainer">
+    <!-- Header with title and controls -->
+    <header id="topBar">
+      <h1>EEG + Game</h1>
+      <div class="controls-group">
+        <button id="connectBtn" class="btn">Connect</button>
+        <button id="disconnectBtn" class="btn">Disconnect</button>
+        <button id="startBtn" class="btn">Start</button>
+        <button id="stopBtn" class="btn">Stop</button>
+        <select id="channelSelector">
+          <option value="all">All Channels</option>
+          <option value="ch0">Channel 0</option>
+          <option value="ch1">Channel 1</option>
+          <option value="ch2">Channel 2</option>
+        </select>
+        <div class="slider-wrapper">
+          <label for="gainSlider">Gain:</label>
+          <input type="range" id="gainSlider" min="0.1" max="5" step="0.1" value="1">
+        </div>
+        <div id="statusText">Waiting for connection...</div>
       </div>
-      <div class="bar-container">
-        <div class="bar" id="thetaBar"></div>
-        <div class="bar-label">Theta</div>
-        <div class="bar-value" id="thetaValue">0%</div>
+    </header>
+
+    <div id="contentContainer">
+      <!-- Left column: Game -->
+      <div id="gameSection">
+        <canvas id="gameCanvas"></canvas>
       </div>
-      <div class="bar-container">
-        <div class="bar" id="alphaBar"></div>
-        <div class="bar-label">Alpha</div>
-        <div class="bar-value" id="alphaValue">0%</div>
-      </div>
-      <div class="bar-container">
-        <div class="bar" id="betaBar"></div>
-        <div class="bar-label">Beta</div>
-        <div class="bar-value" id="betaValue">0%</div>
-      </div>
-      <div class="bar-container">
-        <div class="bar" id="gammaBar"></div>
-        <div class="bar-label">Gamma</div>
-        <div class="bar-value" id="gammaValue">0%</div>
+
+      <!-- Right column: EEG data visualization -->
+      <div id="eegSection">
+        <!-- EEG Waveform plot -->
+        <div class="eeg-panel">
+          <h2>EEG Waveform</h2>
+          <canvas id="plotCanvas"></canvas>
+        </div>
+
+        <!-- Brainwave Bar Graph -->
+        <div class="eeg-panel">
+          <h2>Brainwave Activity</h2>
+          <div id="barGraphContainer">
+            <div id="barGraph">
+              <div class="bar-container">
+                <div class="bar" id="deltaBar"></div>
+                <div class="bar-label">Delta</div>
+                <div class="bar-value" id="deltaValue">0%</div>
+              </div>
+              <div class="bar-container">
+                <div class="bar" id="thetaBar"></div>
+                <div class="bar-label">Theta</div>
+                <div class="bar-value" id="thetaValue">0%</div>
+              </div>
+              <div class="bar-container">
+                <div class="bar" id="alphaBar"></div>
+                <div class="bar-label">Alpha</div>
+                <div class="bar-value" id="alphaValue">0%</div>
+              </div>
+              <div class="bar-container">
+                <div class="bar" id="betaBar"></div>
+                <div class="bar-label">Beta</div>
+                <div class="bar-value" id="betaValue">0%</div>
+              </div>
+              <div class="bar-container">
+                <div class="bar" id="gammaBar"></div>
+                <div class="bar-label">Gamma</div>
+                <div class="bar-value" id="gammaValue">0%</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="threshold-control">
+            <label for="betaThresholdSlider">Beta Threshold:</label>
+            <input type="range" id="betaThresholdSlider" min="0" max="1" step="0.01" value="0.40">
+            <span id="betaThresholdValue">0.40</span>
+          </div>
+        </div>
+
+        <!-- EMG Control Thresholds -->
+        <div class="eeg-panel">
+          <h2>EMG Movement Controls</h2>
+          <div class="slider-container">
+            <div>
+              <div class="container" id="container-left">
+                <div class="slider" id="lower-left"></div>
+              </div>
+              <div class="slider-label">Left Threshold</div>
+            </div>
+            <div>
+              <div class="container" id="container-right">
+                <div class="slider" id="lower-right"></div>
+              </div>
+              <div class="slider-label">Right Threshold</div>
+            </div>
+          </div>
+          <div id="output" class="threshold-output"></div>
+        </div>
       </div>
     </div>
-    <div id="statusText">Waiting for connection...</div>
   </div>
-
   <!-- Game JS -->
   <script>
     // ============ GAME CODE ============
     const gameCanvas = document.getElementById("gameCanvas");
     const gctx = gameCanvas.getContext("2d");
+
 
     function resizeGameCanvas() {
       gameCanvas.width = window.innerWidth;
@@ -240,8 +173,8 @@
     function drawBackground() {
       updateNebulaColors();
       let gradient = gctx.createLinearGradient(0, 0, gameCanvas.width, gameCanvas.height);
-      gradient.addColorStop(0, `rgb(${Math.abs(nebulaColor1.r)%255},0,${Math.abs(nebulaColor1.b)%255})`);
-      gradient.addColorStop(1, `rgb(0,${Math.abs(nebulaColor2.g)%255},${Math.abs(nebulaColor2.b)%255})`);
+      gradient.addColorStop(0, `rgb(${Math.abs(nebulaColor1.r) % 255},0,${Math.abs(nebulaColor1.b) % 255})`);
+      gradient.addColorStop(1, `rgb(0,${Math.abs(nebulaColor2.g) % 255},${Math.abs(nebulaColor2.b) % 255})`);
       gctx.fillStyle = gradient;
       gctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
 
@@ -249,7 +182,7 @@
       gctx.fillStyle = "white";
       stars.forEach(star => {
         gctx.beginPath();
-        gctx.arc(star.x, star.y, star.radius, 0, Math.PI*2);
+        gctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
         gctx.fill();
       });
 
@@ -257,10 +190,63 @@
       gctx.fillStyle = "rgba(100, 100, 255, 0.8)";
       planets.forEach(planet => {
         gctx.beginPath();
-        gctx.arc(planet.x, planet.y, planet.size, 0, Math.PI*2);
+        gctx.arc(planet.x, planet.y, planet.size, 0, Math.PI * 2);
         gctx.fill();
       });
     }
+    class HighPassFilter45Hz {
+      constructor(sampleRate = 500) {
+        const fc = 45;
+        const fs = sampleRate;
+        const omegaC = (2 * Math.PI * fc) / fs;
+        const K = Math.tan(omegaC / 2);
+        this.a0 = 1 + Math.SQRT2 * K + K * K;
+        this.a1 = -2 * (K * K - 1);
+        this.a2 = 1 - Math.SQRT2 * K + K * K;
+        // b coefficients for a high-pass filter
+        this.b0 = 1;
+        this.b1 = -2;
+        this.b2 = 1;
+        // Initialize delay buffers for input and output
+        this.x1 = 0;
+        this.x2 = 0;
+        this.y1 = 0;
+        this.y2 = 0;
+      }
+
+      process(input) {
+        // Apply the difference equation
+        const output = (this.b0 * input + this.b1 * this.x1 + this.b2 * this.x2 - this.a1 * this.y1 - this.a2 * this.y2) / this.a0;
+        // Update the state
+        this.x2 = this.x1;
+        this.x1 = input;
+        this.y2 = this.y1;
+        this.y1 = output;
+        return output;
+      }
+    }
+
+
+    // ---------------- Added Envelope Filter for EMG Data ----------------
+    class EnvelopeFilter {
+      constructor(bufferSize) {
+        this.bufferSize = bufferSize;
+        this.circularBuffer = new Array(bufferSize).fill(0);
+        this.sum = 0;
+        this.dataIndex = 0;
+      }
+      getEnvelope(absEmg) {
+        this.sum -= this.circularBuffer[this.dataIndex];
+        this.sum += absEmg;
+        this.circularBuffer[this.dataIndex] = absEmg;
+        this.dataIndex = (this.dataIndex + 1) % this.bufferSize;
+        // Multiply the average by 2 (or adjust as needed)
+        return (this.sum / this.bufferSize) * 2;
+      }
+    }
+    // Create envelope filters for each EMG channel
+    const envelopeFilterLeft = new EnvelopeFilter(64);
+    const envelopeFilterRight = new EnvelopeFilter(64);
 
     // Player spaceship
     const player = {
@@ -388,6 +374,7 @@
     }
     setInterval(spawnEnemy, 2000);
     gameLoop();
+
   </script>
 
   <!-- EEG + BLE Code -->
@@ -473,15 +460,15 @@
     const FREQ_RESOLUTION = SAMPLE_RATE / FFT_SIZE;
 
     const DELTA_RANGE = [0.5, 4],
-          THETA_RANGE = [4, 8],
-          ALPHA_RANGE = [8, 12],
-          BETA_RANGE = [12, 30],
-          GAMMA_RANGE = [30, 100];
+      THETA_RANGE = [4, 8],
+      ALPHA_RANGE = [8, 12],
+      BETA_RANGE = [12, 30],
+      GAMMA_RANGE = [30, 100];
 
     let fftBuffer = new Array(FFT_SIZE).fill(0);
     function normalizeSample(sample) {
       const a = 4096;
-      return (sample - a/2) * (2/a);
+      return (sample - a / 2) * (2 / a);
     }
 
     function applyFilter(input, state) {
@@ -495,47 +482,47 @@
     class FFT {
       constructor(size) {
         this.size = size;
-        this.cosTable = new Float32Array(size/2);
-        this.sinTable = new Float32Array(size/2);
-        for (let i = 0; i < size/2; i++) {
-          this.cosTable[i] = Math.cos(-2*Math.PI*i/size);
-          this.sinTable[i] = Math.sin(-2*Math.PI*i/size);
+        this.cosTable = new Float32Array(size / 2);
+        this.sinTable = new Float32Array(size / 2);
+        for (let i = 0; i < size / 2; i++) {
+          this.cosTable[i] = Math.cos(-2 * Math.PI * i / size);
+          this.sinTable[i] = Math.sin(-2 * Math.PI * i / size);
         }
       }
       computeMagnitudes(input) {
         const real = new Float32Array(this.size);
         const imag = new Float32Array(this.size);
-        for (let i=0; i<input.length && i<this.size; i++) {
+        for (let i = 0; i < input.length && i < this.size; i++) {
           real[i] = input[i];
         }
         this.fft(real, imag);
-        const mags = new Float32Array(this.size/2);
-        for (let i=0; i<this.size/2; i++) {
-          mags[i] = Math.sqrt(real[i]*real[i] + imag[i]*imag[i]) / (this.size/2);
+        const mags = new Float32Array(this.size / 2);
+        for (let i = 0; i < this.size / 2; i++) {
+          mags[i] = Math.sqrt(real[i] * real[i] + imag[i] * imag[i]) / (this.size / 2);
         }
         return mags;
       }
       fft(real, imag) {
         const n = this.size;
         let j = 0;
-        for (let i=0; i<n-1; i++) {
+        for (let i = 0; i < n - 1; i++) {
           if (i < j) {
             [real[i], real[j]] = [real[j], real[i]];
             [imag[i], imag[j]] = [imag[j], imag[i]];
           }
-          let k = n/2;
+          let k = n / 2;
           while (k <= j) { j -= k; k /= 2; }
           j += k;
         }
-        for (let l=2; l<=n; l*=2) {
-          const le2 = l/2;
-          for (let k=0; k<le2; k++) {
-            const kth = k*(n/l);
+        for (let l = 2; l <= n; l *= 2) {
+          const le2 = l / 2;
+          for (let k = 0; k < le2; k++) {
+            const kth = k * (n / l);
             const c = this.cosTable[kth], s = this.sinTable[kth];
-            for (let i=k; i<n; i+=l) {
-              const i2 = i+le2;
-              const tr = c*real[i2] - s*imag[i2];
-              const ti = c*imag[i2] + s*real[i2];
+            for (let i = k; i < n; i += l) {
+              const i2 = i + le2;
+              const tr = c * real[i2] - s * imag[i2];
+              const ti = c * imag[i2] + s * real[i2];
               real[i2] = real[i] - tr;
               imag[i2] = imag[i] - ti;
               real[i] += tr;
@@ -550,10 +537,10 @@
     function calculateBandPower(fftMagnitudes, freqRange) {
       const [startFreq, endFreq] = freqRange;
       const startIndex = Math.max(1, Math.floor(startFreq / FREQ_RESOLUTION));
-      const endIndex = Math.min(Math.floor(endFreq / FREQ_RESOLUTION), fftMagnitudes.length-1);
+      const endIndex = Math.min(Math.floor(endFreq / FREQ_RESOLUTION), fftMagnitudes.length - 1);
       let power = 0;
-      for (let i=startIndex; i<=endIndex; i++) {
-        power += fftMagnitudes[i]*fftMagnitudes[i];
+      for (let i = startIndex; i <= endIndex; i++) {
+        power += fftMagnitudes[i] * fftMagnitudes[i];
       }
       return power;
     }
@@ -566,6 +553,7 @@
       betaThreshold = parseFloat(e.target.value);
       betaThresholdValue.textContent = betaThreshold.toFixed(2);
     });
+
 
     let buffer_size = 128;
     let circular_buffer = new Array(buffer_size).fill(0);
@@ -589,7 +577,6 @@
 
       // Focus shooting using dynamic threshold
       if (betaRel >= betaThreshold) {
-        console.log("Focused => shootBullet()");
         if (typeof window.shootBullet === 'function') {
           window.shootBullet();
         }
@@ -625,11 +612,11 @@
         plotCtx.strokeStyle = color;
         plotCtx.lineWidth = 2;
         plotCtx.beginPath();
-        for (let i=0; i<data.length; i++) {
-          const x = (i/(data.length-1)) * plotCanvas.width;
-          const y = plotCanvas.height/2 - (data[i]*gain*(plotCanvas.height/2));
-          if (i===0) plotCtx.moveTo(x,y);
-          else plotCtx.lineTo(x,y);
+        for (let i = 0; i < data.length; i++) {
+          const x = (i / (data.length - 1)) * plotCanvas.width;
+          const y = plotCanvas.height / 2 - (data[i] * gain * (plotCanvas.height / 2));
+          if (i === 0) plotCtx.moveTo(x, y);
+          else plotCtx.lineTo(x, y);
         }
         plotCtx.stroke();
       }
@@ -654,53 +641,127 @@
       if (samplesReceived % 5 === 0) processFFT();
     }
 
-    function performPhoneAction() {
-      const now = Date.now();
-      if (now - lastActionTime > DEBOUNCE_TIME) {
-        lastActionTime = now;
-        // your phone action
-      }
+    // Declare variables only once
+    const containers = {
+      left: document.getElementById('container-left'),
+      right: document.getElementById('container-right')
+    };
+    const sliders = {
+      left: document.getElementById('lower-left'),
+      right: document.getElementById('lower-right')
+    };
+    const output = document.getElementById('output');
+
+    let activeSlider = null;
+    let currentValues = { left: 50, right: 50 }; // Initial threshold values (50%)
+
+    // Function to update slider positions
+    function updateSliderPositions() {
+      sliders.left.style.top = `${currentValues.left}%`;
+      sliders.right.style.top = `${currentValues.right}%`;
     }
+
+    // Function to update the output display
+    function updateOutput() {
+      output.textContent =
+        `Left Threshold: ${currentValues.left.toFixed(1)}% | ` +
+        `Right Threshold: ${currentValues.right.toFixed(1)}%`;
+    }
+
+    // Function to calculate the percentage based on mouse position
+    function getPercentage(clientY, container) {
+      const rect = container.getBoundingClientRect();
+      let y = clientY - rect.top;
+      y = Math.max(0, Math.min(y, rect.height));
+      return (y / rect.height) * 100;
+    }
+
+    // Handle mouse down event
+    function handleMouseDown(event) {
+      activeSlider = event.target.id.split('-')[1]; // 'left' or 'right'
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    // Handle mouse move event
+    function handleMouseMove(event) {
+      if (!activeSlider) return;
+
+      const container = containers[activeSlider];
+      const desired = getPercentage(event.clientY, container);
+      currentValues[activeSlider] = desired;
+
+      updateSliderPositions();
+      updateOutput();
+    }
+
+    // Handle mouse up event
+    function handleMouseUp() {
+      activeSlider = null;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    }
+
+    // Initialize slider positions and events
+    updateSliderPositions();
+    updateOutput();
+    Object.values(sliders).forEach(slider => {
+      slider.addEventListener('mousedown', handleMouseDown);
+    });
 
     // Updated processSample: Now reads 3 channels (EEG at offset 1, EMG left at offset 3, EMG right at offset 5)
+    // Create instances for left and right EMG filtering
+    const highPass45Left = new HighPassFilter45Hz(500);
+    const highPass45Right = new HighPassFilter45Hz(500);
+
     function processSample(dataView) {
       if (dataView.byteLength !== SINGLE_SAMPLE_LEN) return;
+
       const sampleCounter = dataView.getUint8(0);
-      if (prevSampleCounter === null) {
-        prevSampleCounter = sampleCounter;
-      } else {
-        prevSampleCounter = sampleCounter;
-      }
-      // Read channels:
-      const rawEEG      = dataView.getInt16(1, false);  // EEG channel (ch1)
-      const rawEMGLeft  = dataView.getInt16(3, false);  // EMG channel left (ch2)
-      const rawEMGRight = dataView.getInt16(5, false);  // EMG channel right (ch3)
+      prevSampleCounter = sampleCounter;
+      // Read EEG and EMG channels
+      const rawEEG = dataView.getInt16(1, false);
 
-      const normEEG      = normalizeSample(Math.max(0, Math.min(4095, rawEEG)));
-      const normEMGLeft  = normalizeSample(Math.max(0, Math.min(4095, rawEMGLeft)));
-      const normEMGRight = normalizeSample(Math.max(0, Math.min(4095, rawEMGRight)));
 
+      // Process EEG as before
+      const normEEG = normalizeSample(Math.max(0, Math.min(4095, rawEEG)));
       const filteredEEG = applyFilter(normEEG, filterStateCh0);
-
-      // Process EEG data for plotting/FFT
       updateData(filteredEEG, filteredEEG);
       samplesReceived++;
+      // Read EMG data from BLE device
+      const rawEMGLeft = dataView.getInt16(3, false);
+      const rawEMGRight = dataView.getInt16(5, false);
 
-      // EMG-based control for horizontal movement:
-      if (Math.abs(normEMGLeft) > Math.abs(normEMGRight)) {
-          player.dx = -player.speed;
-      } else if (Math.abs(normEMGRight) > Math.abs(normEMGLeft)) {
-          player.dx = player.speed;
+      // Apply 45Hz high-pass filter
+      const filteredEMGLeft = highPass45Left.process(rawEMGLeft);
+      const filteredEMGRight = highPass45Right.process(rawEMGRight);
+
+
+      // Apply envelope detection
+      const envLeft = envelopeFilterLeft.getEnvelope(Math.abs(filteredEMGLeft));
+      const envRight = envelopeFilterRight.getEnvelope(Math.abs(filteredEMGRight));
+
+      // Get user-defined movement thresholds
+      const EMG_THRESHOLD_LEFT = 240;
+      const EMG_THRESHOLD_RIGHT = 240;
+
+
+      // Adjust movement logic
+      if (envLeft > EMG_THRESHOLD_LEFT && envLeft > envRight) {
+        player.dx = -player.speed * (envLeft / EMG_THRESHOLD_LEFT); // Move left
+      } else if (envRight > EMG_THRESHOLD_RIGHT && envRight > envLeft) {
+        player.dx = player.speed * (envRight / EMG_THRESHOLD_RIGHT); // Move right
       } else {
-          player.dx = 0;
+        player.dx *= 0; // Gradually stop (smoother movement)
       }
     }
+
 
     function handleNotification(event) {
       const value = event.target.value;
       if (value.byteLength === NEW_PACKET_LEN) {
-        for (let i=0; i<NEW_PACKET_LEN; i+=SINGLE_SAMPLE_LEN) {
-          const sampleBuf = value.buffer.slice(i, i+SINGLE_SAMPLE_LEN);
+        for (let i = 0; i < NEW_PACKET_LEN; i += SINGLE_SAMPLE_LEN) {
+          const sampleBuf = value.buffer.slice(i, i + SINGLE_SAMPLE_LEN);
           processSample(new DataView(sampleBuf));
         }
       } else if (value.byteLength === SINGLE_SAMPLE_LEN) {
@@ -809,4 +870,5 @@
     stopBtn.addEventListener("click", stopStream);
   </script>
 </body>
+
 </html>
