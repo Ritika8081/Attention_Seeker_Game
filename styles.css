@@ -6,7 +6,7 @@ body {
     justify-content: center;
     align-items: center;
     height: 100vh;
-    background: url('background.png') no-repeat center center/cover;
+    background: url('assets/background.png') no-repeat center center/cover;
     font-family: Monument, sans-serif;
     text-align: center;
     flex-direction: column;
@@ -24,8 +24,8 @@ body {
 /* Custom game title image (dynamically positioned) */
 .game-title {
     position: relative;
-    width: 60%;
-    max-width: 600px;
+    width: 100%;
+    max-width: 800px;
     animation: glow 2s infinite alternate;
 }
 

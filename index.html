@@ -123,6 +123,14 @@
     window.addEventListener("resize", resizeGameCanvas);
     resizeGameCanvas();
 
+    // Preload custom asteroid images (asteroid1.png ... asteroid14.png)
+    const asteroidImages = [];
+    for (let i = 1; i <= 14; i++) {
+      const img = new Image();
+      img.src = `assets/asteroids/asteroid${i}.png`;
+      asteroidImages.push(img);
+    }
+
     // Background objects (stars, planets)
     const stars = [];
     const planets = [];
@@ -259,10 +267,10 @@
       height: 50
     };
     const spaceshipImg = new Image();
-    spaceshipImg.src = "spaceship.png";  // Put spaceship.png in same folder
+    spaceshipImg.src = "assets/spaceship.png";  // Ensure spaceship.png is in the correct folder
     spaceshipImg.onload = () => {
       const aspectRatio = spaceshipImg.width / spaceshipImg.height;
-      player.width = 300;
+      player.width = 150;
       player.height = player.width / aspectRatio;
     };
 
@@ -273,7 +281,8 @@
       if (event.key === "ArrowDown") player.dy = player.speed;
     });
     document.addEventListener("keyup", () => {
-      player.dx = 0; player.dy = 0;
+      player.dx = 0;
+      player.dy = 0;
     });
 
     function updatePlayer() {
@@ -294,13 +303,16 @@
     // Enemies
     const enemies = [];
     function spawnEnemy() {
-      const enemySize = 40;
+      const enemySize = 130;
+      // Select a random asteroid image from the preloaded array
+      const randomIndex = Math.floor(Math.random() * asteroidImages.length);
       enemies.push({
         x: Math.random() * (gameCanvas.width - enemySize),
         y: -enemySize,
         width: enemySize,
         height: enemySize,
-        speed: 2
+        speed: 2,
+        image: asteroidImages[randomIndex]
       });
     }
     function updateEnemies() {
@@ -310,9 +322,14 @@
       });
     }
     function drawEnemies() {
-      gctx.fillStyle = "red";
       enemies.forEach(enemy => {
-        gctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        if (enemy.image && enemy.image.complete) {
+          gctx.drawImage(enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
+        } else {
+          // Fallback if image not loaded yet
+          gctx.fillStyle = "red";
+          gctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        }
       });
     }
 
@@ -376,6 +393,7 @@
     gameLoop();
 
   </script>
+
 
   <!-- EEG + BLE Code -->
   <script>
