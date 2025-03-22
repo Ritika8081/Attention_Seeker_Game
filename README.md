@@ -11,6 +11,8 @@ Control a spaceship using your focus (EEG) and hand movements (EMG) to navigate 
 We have used *Neuro Play Ground (NPG) Lite* which is a  multichannel wireless bio-potential signal amplification device designed for recording *EMG, ECG, EOG, and EEG*. It comes in a compact Adafruit feather form factor and offers WiFi/BLE wireless connectivity. With the addition of daughter boards called Playmates, users can easily enhance the device’s capabilities, enabling the students/researchers/hobbyists to create awesome Human-Computer Interface (HCI) and Brain-Computer Interface (BCI) applications.
 
 
+![NPG](assets/NPG.png)
+
 ### Upload the Arduino Firmware
 
 ### Steps:
