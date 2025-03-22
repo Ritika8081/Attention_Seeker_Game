@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>EEG + Game Single Screen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+  <div id="mainContainer">
+    <!-- Header with title and controls -->
+    <header id="topBar">
+
+      <div class="controls-group">
+        <button id="connectBtn" class="btn">Connect</button>
+        <button id="disconnectBtn" class="btn">Disconnect</button>
+        <button id="startBtn" class="btn">Start</button>
+        <button id="stopBtn" class="btn">Stop</button>
+        <select id="channelSelector">
+          <option value="all">All Channels</option>
+          <option value="ch0">Channel 0</option>
+          <option value="ch1">Channel 1</option>
+          <option value="ch2">Channel 2</option>
+        </select>
+        <div class="slider-wrapper">
+          <label for="gainSlider">Gain:</label>
+          <input type="range" id="gainSlider" min="0.1" max="5" step="0.1" value="1">
+        </div>
+        <div id="statusText">Waiting for connection...</div>
+      </div>
+    </header>
+
+    <div id="contentContainer">
+      <!-- Left column: Game -->
+      <div id="gameSection">
+        <canvas id="gameCanvas"></canvas>
+      </div>
+
+      <!-- Right column: EEG data visualization -->
+      <div id="eegSection">
+        <!-- EEG Waveform plot -->
+        <div class="eeg-panel">
+          <h2>EEG Waveform</h2>
+          <canvas id="plotCanvas"></canvas>
+        </div>
+
+        <!-- Brainwave Bar Graph (hidden) and Beta Threshold Control (visible) -->
+        <div class="eeg-panel">
+          <h2>Beta Threshold Control</h2>
+          <!-- Hide the bar graph container -->
+          <div id="barGraphContainer" style="display: none;">
+            <div id="barGraph">
+              <div class="bar-container">
+                <div class="bar" id="deltaBar"></div>
+                <div class="bar-label">Delta</div>
+                <div class="bar-value" id="deltaValue">0%</div>
+              </div>
+              <div class="bar-container">
+                <div class="bar" id="thetaBar"></div>
+                <div class="bar-label">Theta</div>
+                <div class="bar-value" id="thetaValue">0%</div>
+              </div>
+              <div class="bar-container">
+                <div class="bar" id="alphaBar"></div>
+                <div class="bar-label">Alpha</div>
+                <div class="bar-value" id="alphaValue">0%</div>
+              </div>
+              <div class="bar-container">
+                <div class="bar" id="betaBar"></div>
+                <div class="bar-label">Beta</div>
+                <div class="bar-value" id="betaValue">0%</div>
+              </div>
+              <div class="bar-container">
+                <div class="bar" id="gammaBar"></div>
+                <div class="bar-label">Gamma</div>
+                <div class="bar-value" id="gammaValue">0%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Keep the threshold control visible -->
+          <div class="threshold-control">
+            <label for="betaThresholdSlider">Beta Threshold:</label>
+            <input type="range" id="betaThresholdSlider" min="0" max="1" step="0.01" value="0.40">
+            <span id="betaThresholdValue">0.40</span>
+          </div>
+        </div>
+
+        <!-- EMG Control Thresholds -->
+        <div class="eeg-panel">
+
+          <div class="slider-container">
+            <div>
+              <div class="container" id="container-left">
+                <div class="slider" id="lower-left"></div>
+              </div>
+              <div class="slider-label">Left Threshold</div>
+            </div>
+            <div>
+              <div class="container" id="container-right">
+                <div class="slider" id="lower-right"></div>
+              </div>
+              <div class="slider-label">Right Threshold</div>
+            </div>
+          </div>
+          <div id="output" class="threshold-output"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Game JS -->
+  <script>
+    // ============ GAME CODE ============
+    const gameCanvas = document.getElementById("gameCanvas");
+    const gctx = gameCanvas.getContext("2d");
+
+
+    function resizeGameCanvas() {
+      gameCanvas.width = window.innerWidth;
+      gameCanvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resizeGameCanvas);
+    resizeGameCanvas();
+
+    // Preload custom asteroid images (asteroid1.png ... asteroid14.png)
+    const asteroidImages = [];
+    for (let i = 1; i <= 14; i++) {
+      const img = new Image();
+      img.src = `assets/asteroids/asteroid${i}.png`;
+      asteroidImages.push(img);
+    }
+
+    // Background objects (stars, planets)
+    const stars = [];
+    const planets = [];
+    for (let i = 0; i < 100; i++) {
+      stars.push({
+        x: Math.random() * gameCanvas.width,
+        y: Math.random() * gameCanvas.height,
+        radius: Math.random() * 2 + 1,
+        speed: Math.random() * 2 + 0.5
+      });
+    }
+    for (let i = 0; i < 5; i++) {
+      planets.push({
+        x: Math.random() * gameCanvas.width,
+        y: Math.random() * gameCanvas.height,
+        size: Math.random() * 40 + 20,
+        speed: Math.random() * 0.5 + 0.1
+      });
+    }
+
+    function updateBackground() {
+      stars.forEach(star => {
+        star.y += star.speed;
+        if (star.y > gameCanvas.height) {
+          star.y = 0;
+          star.x = Math.random() * gameCanvas.width;
+        }
+      });
+      planets.forEach(planet => {
+        planet.y += planet.speed;
+        if (planet.y > gameCanvas.height) {
+          planet.y = -planet.size;
+          planet.x = Math.random() * gameCanvas.width;
+        }
+      });
+    }
+
+    // Nebula effect
+    let nebulaColor1 = { r: 50, g: 0, b: 150 };
+    let nebulaColor2 = { r: 0, g: 0, b: 100 };
+    function updateNebulaColors() {
+      nebulaColor1.r = 50 + Math.sin(Date.now() * 0.0001) * 100;
+      nebulaColor1.b = 150 + Math.sin(Date.now() * 0.0002) * 105;
+      nebulaColor2.g = 50;
+      nebulaColor2.b = 100 + Math.sin(Date.now() * 0.0003) * 100;
+    }
+
+    function drawBackground() {
+      updateNebulaColors();
+      let gradient = gctx.createLinearGradient(0, 0, gameCanvas.width, gameCanvas.height);
+      gradient.addColorStop(0, `rgb(${Math.abs(nebulaColor1.r) % 255},0,${Math.abs(nebulaColor1.b) % 255})`);
+      gradient.addColorStop(1, `rgb(0,${Math.abs(nebulaColor2.g) % 255},${Math.abs(nebulaColor2.b) % 255})`);
+      gctx.fillStyle = gradient;
+      gctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+      // Stars
+      gctx.fillStyle = "white";
+      stars.forEach(star => {
+        gctx.beginPath();
+        gctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        gctx.fill();
+      });
+
+      // Planets
+      gctx.fillStyle = "rgba(100, 100, 255, 0.8)";
+      planets.forEach(planet => {
+        gctx.beginPath();
+        gctx.arc(planet.x, planet.y, planet.size, 0, Math.PI * 2);
+        gctx.fill();
+      });
+    }
+    class HighPassFilter45Hz {
+      constructor(sampleRate = 500) {
+        const fc = 45;
+        const fs = sampleRate;
+        const omegaC = (2 * Math.PI * fc) / fs;
+        const K = Math.tan(omegaC / 2);
+        this.a0 = 1 + Math.SQRT2 * K + K * K;
+        this.a1 = -2 * (K * K - 1);
+        this.a2 = 1 - Math.SQRT2 * K + K * K;
+        // b coefficients for a high-pass filter
+        this.b0 = 1;
+        this.b1 = -2;
+        this.b2 = 1;
+        // Initialize delay buffers for input and output
+        this.x1 = 0;
+        this.x2 = 0;
+        this.y1 = 0;
+        this.y2 = 0;
+      }
+
+      process(input) {
+        // Apply the difference equation
+        const output = (this.b0 * input + this.b1 * this.x1 + this.b2 * this.x2 - this.a1 * this.y1 - this.a2 * this.y2) / this.a0;
+        // Update the state
+        this.x2 = this.x1;
+        this.x1 = input;
+        this.y2 = this.y1;
+        this.y1 = output;
+        return output;
+      }
+    }
+
+
+    // ---------------- Added Envelope Filter for EMG Data ----------------
+    class EnvelopeFilter {
+      constructor(bufferSize) {
+        this.bufferSize = bufferSize;
+        this.circularBuffer = new Array(bufferSize).fill(0);
+        this.sum = 0;
+        this.dataIndex = 0;
+      }
+      getEnvelope(absEmg) {
+        this.sum -= this.circularBuffer[this.dataIndex];
+        this.sum += absEmg;
+        this.circularBuffer[this.dataIndex] = absEmg;
+        this.dataIndex = (this.dataIndex + 1) % this.bufferSize;
+        // Multiply the average by 2 (or adjust as needed)
+        return (this.sum / this.bufferSize) * 2;
+      }
+    }
+    // Create envelope filters for each EMG channel
+    const envelopeFilterLeft = new EnvelopeFilter(64);
+    const envelopeFilterRight = new EnvelopeFilter(64);
+
+    // Player spaceship
+    const player = {
+      x: gameCanvas.width / 2,
+      y: gameCanvas.height - 150,
+      speed: 5,
+      dx: 0,
+      dy: 0,
+      width: 50,
+      height: 50
+    };
+    const spaceshipImg = new Image();
+    spaceshipImg.src = "assets/spaceship.png";  // Ensure spaceship.png is in the correct folder
+    spaceshipImg.onload = () => {
+      const aspectRatio = spaceshipImg.width / spaceshipImg.height;
+      player.width = 150;
+      player.height = player.width / aspectRatio;
+    };
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowLeft") player.dx = -player.speed;
+      if (event.key === "ArrowRight") player.dx = player.speed;
+      if (event.key === "ArrowUp") player.dy = -player.speed;
+      if (event.key === "ArrowDown") player.dy = player.speed;
+    });
+    document.addEventListener("keyup", () => {
+      player.dx = 0;
+      player.dy = 0;
+    });
+
+    function updatePlayer() {
+      player.x += player.dx;
+      player.y += player.dy;
+      if (player.x < 0) player.x = 0;
+      if (player.x + player.width > gameCanvas.width) player.x = gameCanvas.width - player.width;
+      if (player.y < 0) player.y = 0;
+      if (player.y + player.height > gameCanvas.height) player.y = gameCanvas.height - player.height;
+    }
+
+    function drawPlayer() {
+      if (spaceshipImg.complete) {
+        gctx.drawImage(spaceshipImg, player.x, player.y, player.width, player.height);
+      }
+    }
+
+    // Enemies
+    const enemies = [];
+    function spawnEnemy() {
+      const enemySize = 130;
+      // Select a random asteroid image from the preloaded array
+      const randomIndex = Math.floor(Math.random() * asteroidImages.length);
+      enemies.push({
+        x: Math.random() * (gameCanvas.width - enemySize),
+        y: -enemySize,
+        width: enemySize,
+        height: enemySize,
+        speed: 2,
+        image: asteroidImages[randomIndex]
+      });
+    }
+    function updateEnemies() {
+      enemies.forEach((enemy, i) => {
+        enemy.y += enemy.speed;
+        if (enemy.y > gameCanvas.height) enemies.splice(i, 1);
+      });
+    }
+    function drawEnemies() {
+      enemies.forEach(enemy => {
+        if (enemy.image && enemy.image.complete) {
+          gctx.drawImage(enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
+        } else {
+          // Fallback if image not loaded yet
+          gctx.fillStyle = "red";
+          gctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        }
+      });
+    }
+
+    // Bullets
+    const bullets = [];
+    function shootBullet() {
+      bullets.push({
+        x: player.x + player.width / 2 - 5,
+        y: player.y,
+        width: 10,
+        height: 20,
+        speed: 5
+      });
+    }
+    // Expose globally so EEG code can call it
+    window.shootBullet = shootBullet;
+
+    function updateBullets() {
+      bullets.forEach((bullet, i) => {
+        bullet.y -= bullet.speed;
+        if (bullet.y < 0) bullets.splice(i, 1);
+      });
+    }
+    function drawBullets() {
+      gctx.fillStyle = "yellow";
+      bullets.forEach(bullet => {
+        gctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+      });
+    }
+
+    function checkCollisions() {
+      bullets.forEach((bullet, bIndex) => {
+        enemies.forEach((enemy, eIndex) => {
+          if (
+            bullet.x < enemy.x + enemy.width &&
+            bullet.x + bullet.width > enemy.x &&
+            bullet.y < enemy.y + enemy.height &&
+            bullet.y + bullet.height > enemy.y
+          ) {
+            enemies.splice(eIndex, 1);
+            bullets.splice(bIndex, 1);
+          }
+        });
+      });
+    }
+
+    function gameLoop() {
+      gctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+      updateBackground();
+      drawBackground();
+      updatePlayer();
+      updateEnemies();
+      updateBullets();
+      checkCollisions();
+      drawPlayer();
+      drawEnemies();
+      drawBullets();
+      requestAnimationFrame(gameLoop);
+    }
+    setInterval(spawnEnemy, 2000);
+    gameLoop();
+
+  </script>
+
+
+  <!-- EEG + BLE Code -->
+  <script>
+    // ============ EEG CODE ============
+    class Notch {
+      constructor() {
+        this.z1_1 = 0; this.z2_1 = 0;
+        this.x_1 = 0;
+        this.currentSamplingRate = 500;
+      }
+      setSamplingRate(rate) { this.currentSamplingRate = rate; }
+      process(input, type) {
+        if (!type) return input;
+        let output = input;
+        // Simple example: 50Hz notch for 500Hz
+        if (this.currentSamplingRate === 500 && type === 1) {
+          this.x_1 = output - (-1.56858163 * this.z1_1) - (0.96424138 * this.z2_1);
+          output = 0.96508099 * this.x_1 + -1.56202714 * this.z1_1 + 0.96508099 * this.z2_1;
+          this.z2_1 = this.z1_1;
+          this.z1_1 = this.x_1;
+        }
+        return output;
+      }
+    }
+
+    let notchFilterCh0 = new Notch();
+    let notchFilterCh1 = new Notch();
+    notchFilterCh0.setSamplingRate(500);
+    notchFilterCh1.setSamplingRate(500);
+
+    let device = null, server = null, controlChar = null, dataChar = null;
+    let streaming = false, connected = false;
+
+    const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+    const DATA_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+    const CONTROL_CHAR_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
+    const SINGLE_SAMPLE_LEN = 7, BLOCK_COUNT = 10;
+    const NEW_PACKET_LEN = SINGLE_SAMPLE_LEN * BLOCK_COUNT;
+
+    let prevSampleCounter = null, samplesReceived = 0;
+    const THRESHOLD = 0.5;
+    let lastActionTime = 0;
+    const DEBOUNCE_TIME = 1000;
+
+    // Plot canvas for EEG waveform (renamed context variable to avoid collision)
+    const plotCanvas = document.getElementById("plotCanvas");
+    const plotCtx = plotCanvas.getContext("2d");
+    function resizePlotCanvas() {
+      plotCanvas.width = plotCanvas.clientWidth;
+      plotCanvas.height = plotCanvas.clientHeight;
+    }
+    window.addEventListener("resize", resizePlotCanvas);
+    resizePlotCanvas();
+
+    let dataCh0 = new Array(500).fill(0);
+    let dataCh1 = new Array(500).fill(0);
+
+    let filterStateCh0 = { z1: 0, z2: 0, x1: 0 };
+    let filterStateCh1 = { z1: 0, z2: 0, x1: 0 };
+
+    let gain = 1;
+    const gainSlider = document.getElementById("gainSlider");
+    gainSlider.disabled = true;  // disable until connected
+    gainSlider.addEventListener("input", (e) => {
+      gain = parseFloat(e.target.value);
+    });
+
+    let selectedChannel = "all";
+    const channelSelector = document.getElementById("channelSelector");
+    channelSelector.disabled = true;
+    channelSelector.addEventListener("change", (e) => {
+      selectedChannel = e.target.value;
+    });
+
+    let width = plotCanvas.width, height = plotCanvas.height;
+    window.addEventListener("resize", () => {
+      width = plotCanvas.width; height = plotCanvas.height;
+    });
+
+    const FFT_SIZE = 256;
+    const SAMPLE_RATE = 500;
+    const FREQ_RESOLUTION = SAMPLE_RATE / FFT_SIZE;
+
+    const DELTA_RANGE = [0.5, 4],
+      THETA_RANGE = [4, 8],
+      ALPHA_RANGE = [8, 12],
+      BETA_RANGE = [12, 30],
+      GAMMA_RANGE = [30, 100];
+
+    let fftBuffer = new Array(FFT_SIZE).fill(0);
+    function normalizeSample(sample) {
+      const a = 4096;
+      return (sample - a / 2) * (2 / a);
+    }
+
+    function applyFilter(input, state) {
+      state.x1 = input - (-1.47548044 * state.z1) - (0.58691951 * state.z2);
+      const output = 0.02785977 * state.x1 + 0.05571953 * state.z1 + 0.02785977 * state.z2;
+      state.z2 = state.z1;
+      state.z1 = state.x1;
+      return output;
+    }
+
+    class FFT {
+      constructor(size) {
+        this.size = size;
+        this.cosTable = new Float32Array(size / 2);
+        this.sinTable = new Float32Array(size / 2);
+        for (let i = 0; i < size / 2; i++) {
+          this.cosTable[i] = Math.cos(-2 * Math.PI * i / size);
+          this.sinTable[i] = Math.sin(-2 * Math.PI * i / size);
+        }
+      }
+      computeMagnitudes(input) {
+        const real = new Float32Array(this.size);
+        const imag = new Float32Array(this.size);
+        for (let i = 0; i < input.length && i < this.size; i++) {
+          real[i] = input[i];
+        }
+        this.fft(real, imag);
+        const mags = new Float32Array(this.size / 2);
+        for (let i = 0; i < this.size / 2; i++) {
+          mags[i] = Math.sqrt(real[i] * real[i] + imag[i] * imag[i]) / (this.size / 2);
+        }
+        return mags;
+      }
+      fft(real, imag) {
+        const n = this.size;
+        let j = 0;
+        for (let i = 0; i < n - 1; i++) {
+          if (i < j) {
+            [real[i], real[j]] = [real[j], real[i]];
+            [imag[i], imag[j]] = [imag[j], imag[i]];
+          }
+          let k = n / 2;
+          while (k <= j) { j -= k; k /= 2; }
+          j += k;
+        }
+        for (let l = 2; l <= n; l *= 2) {
+          const le2 = l / 2;
+          for (let k = 0; k < le2; k++) {
+            const kth = k * (n / l);
+            const c = this.cosTable[kth], s = this.sinTable[kth];
+            for (let i = k; i < n; i += l) {
+              const i2 = i + le2;
+              const tr = c * real[i2] - s * imag[i2];
+              const ti = c * imag[i2] + s * real[i2];
+              real[i2] = real[i] - tr;
+              imag[i2] = imag[i] - ti;
+              real[i] += tr;
+              imag[i] += ti;
+            }
+          }
+        }
+      }
+    }
+    const fftProcessor = new FFT(FFT_SIZE);
+
+    function calculateBandPower(fftMagnitudes, freqRange) {
+      const [startFreq, endFreq] = freqRange;
+      const startIndex = Math.max(1, Math.floor(startFreq / FREQ_RESOLUTION));
+      const endIndex = Math.min(Math.floor(endFreq / FREQ_RESOLUTION), fftMagnitudes.length - 1);
+      let power = 0;
+      for (let i = startIndex; i <= endIndex; i++) {
+        power += fftMagnitudes[i] * fftMagnitudes[i];
+      }
+      return power;
+    }
+    let betaThreshold = 0.40;  // initial threshold
+
+    const betaThresholdSlider = document.getElementById("betaThresholdSlider");
+    const betaThresholdValue = document.getElementById("betaThresholdValue");
+
+    betaThresholdSlider.addEventListener("input", (e) => {
+      betaThreshold = parseFloat(e.target.value);
+      betaThresholdValue.textContent = betaThreshold.toFixed(2);
+    });
+
+
+    let buffer_size = 128;
+    let circular_buffer = new Array(buffer_size).fill(0);
+    let data_index = 0, sum = 0;
+    function getSmoothedBeta(beta) {
+      sum -= circular_buffer[data_index];
+      sum += beta;
+      circular_buffer[data_index] = beta;
+      data_index = (data_index + 1) % buffer_size;
+      return sum / buffer_size;
+    }
+
+    function updateBarGraph(deltaP, thetaP, alphaP, betaP, gammaP) {
+      const total = deltaP + thetaP + alphaP + betaP + gammaP;
+      if (total <= 0) return;
+      const deltaRel = deltaP / total;
+      const thetaRel = thetaP / total;
+      const alphaRel = alphaP / total;
+      const betaRel = getSmoothedBeta(betaP / total);
+      const gammaRel = gammaP / total;
+
+      // Focus shooting using dynamic threshold
+      if (betaRel >= betaThreshold) {
+        if (typeof window.shootBullet === 'function') {
+          window.shootBullet();
+        }
+      }
+
+      // Update bars
+      document.getElementById("deltaBar").style.height = `${Math.round(deltaRel * 80)}px`;
+      document.getElementById("thetaBar").style.height = `${Math.round(thetaRel * 80)}px`;
+      document.getElementById("alphaBar").style.height = `${Math.round(alphaRel * 80)}px`;
+      document.getElementById("betaBar").style.height = `${Math.round(betaRel * 80)}px`;
+      document.getElementById("gammaBar").style.height = `${Math.round(gammaRel * 80)}px`;
+
+      document.getElementById("deltaValue").textContent = `${Math.round(deltaRel * 100)}%`;
+      document.getElementById("thetaValue").textContent = `${Math.round(thetaRel * 100)}%`;
+      document.getElementById("alphaValue").textContent = `${Math.round(alphaRel * 100)}%`;
+      document.getElementById("betaValue").textContent = `${Math.round(betaRel * 100)}%`;
+      document.getElementById("gammaValue").textContent = `${Math.round(gammaRel * 100)}%`;
+    }
+
+    function processFFT() {
+      const fftMags = fftProcessor.computeMagnitudes(fftBuffer);
+      const deltaPower = calculateBandPower(fftMags, DELTA_RANGE);
+      const thetaPower = calculateBandPower(fftMags, THETA_RANGE);
+      const alphaPower = calculateBandPower(fftMags, ALPHA_RANGE);
+      const betaPower = calculateBandPower(fftMags, BETA_RANGE);
+      const gammaPower = calculateBandPower(fftMags, GAMMA_RANGE);
+      updateBarGraph(deltaPower, thetaPower, alphaPower, betaPower, gammaPower);
+    }
+
+    function drawWaveform() {
+      plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
+      function drawChannel(data, color) {
+        plotCtx.strokeStyle = color;
+        plotCtx.lineWidth = 2;
+        plotCtx.beginPath();
+        for (let i = 0; i < data.length; i++) {
+          const x = (i / (data.length - 1)) * plotCanvas.width;
+          const y = plotCanvas.height / 2 - (data[i] * gain * (plotCanvas.height / 2));
+          if (i === 0) plotCtx.moveTo(x, y);
+          else plotCtx.lineTo(x, y);
+        }
+        plotCtx.stroke();
+      }
+      if (selectedChannel === "all" || selectedChannel === "ch0") {
+        drawChannel(dataCh0, "cyan");
+      }
+      if (selectedChannel === "all" || selectedChannel === "ch1") {
+        drawChannel(dataCh1, "lime");
+      }
+      requestAnimationFrame(drawWaveform);
+    }
+    drawWaveform();
+
+    function updateData(eegValue, dummy) {
+      eegValue = notchFilterCh0.process(eegValue, 1);
+      dataCh0.push(eegValue);
+      dataCh1.push(eegValue);
+      if (dataCh0.length > 500) dataCh0.shift();
+      if (dataCh1.length > 500) dataCh1.shift();
+      fftBuffer.push(eegValue);
+      if (fftBuffer.length > FFT_SIZE) fftBuffer.shift();
+      if (samplesReceived % 5 === 0) processFFT();
+    }
+
+    // Declare variables only once
+    const containers = {
+      left: document.getElementById('container-left'),
+      right: document.getElementById('container-right')
+    };
+    const sliders = {
+      left: document.getElementById('lower-left'),
+      right: document.getElementById('lower-right')
+    };
+    const output = document.getElementById('output');
+
+    let activeSlider = null;
+    let currentValues = { left: 50, right: 50 }; // Initial threshold values (50%)
+
+    // Function to update slider positions
+    function updateSliderPositions() {
+      sliders.left.style.top = `${currentValues.left}%`;
+      sliders.right.style.top = `${currentValues.right}%`;
+    }
+
+    // Function to update the output display
+    function updateOutput() {
+      output.textContent =
+        `Left Threshold: ${currentValues.left.toFixed(1)}% | ` +
+        `Right Threshold: ${currentValues.right.toFixed(1)}%`;
+    }
+
+    // Function to calculate the percentage based on mouse position
+    function getPercentage(clientY, container) {
+      const rect = container.getBoundingClientRect();
+      let y = clientY - rect.top;
+      y = Math.max(0, Math.min(y, rect.height));
+      return (y / rect.height) * 100;
+    }
+
+    // Handle mouse down event
+    function handleMouseDown(event) {
+      activeSlider = event.target.id.split('-')[1]; // 'left' or 'right'
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    // Handle mouse move event
+    function handleMouseMove(event) {
+      if (!activeSlider) return;
+
+      const container = containers[activeSlider];
+      const desired = getPercentage(event.clientY, container);
+      currentValues[activeSlider] = desired;
+
+      updateSliderPositions();
+      updateOutput();
+    }
+
+    // Handle mouse up event
+    function handleMouseUp() {
+      activeSlider = null;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    }
+
+    // Initialize slider positions and events
+    updateSliderPositions();
+    updateOutput();
+    Object.values(sliders).forEach(slider => {
+      slider.addEventListener('mousedown', handleMouseDown);
+    });
+
+    // Updated processSample: Now reads 3 channels (EEG at offset 1, EMG left at offset 3, EMG right at offset 5)
+    // Create instances for left and right EMG filtering
+    const highPass45Left = new HighPassFilter45Hz(500);
+    const highPass45Right = new HighPassFilter45Hz(500);
+
+    function processSample(dataView) {
+      if (dataView.byteLength !== SINGLE_SAMPLE_LEN) return;
+
+      const sampleCounter = dataView.getUint8(0);
+      prevSampleCounter = sampleCounter;
+      // Read EEG and EMG channels
+      const rawEEG = dataView.getInt16(1, false);
+
+
+      // Process EEG as before
+      const normEEG = normalizeSample(Math.max(0, Math.min(4095, rawEEG)));
+      const filteredEEG = applyFilter(normEEG, filterStateCh0);
+      updateData(filteredEEG, filteredEEG);
+      samplesReceived++;
+      // Read EMG data from BLE device
+      const rawEMGLeft = dataView.getInt16(3, false);
+      const rawEMGRight = dataView.getInt16(5, false);
+
+      // Apply 45Hz high-pass filter
+      const filteredEMGLeft = highPass45Left.process(rawEMGLeft);
+      const filteredEMGRight = highPass45Right.process(rawEMGRight);
+
+
+      // Apply envelope detection
+      const envLeft = envelopeFilterLeft.getEnvelope(Math.abs(filteredEMGLeft));
+      const envRight = envelopeFilterRight.getEnvelope(Math.abs(filteredEMGRight));
+
+      // Get user-defined movement thresholds
+      const EMG_THRESHOLD_LEFT = 240;
+      const EMG_THRESHOLD_RIGHT = 240;
+
+
+      // Adjust movement logic
+      if (envLeft > EMG_THRESHOLD_LEFT && envLeft > envRight) {
+        player.dx = -player.speed * (envLeft / EMG_THRESHOLD_LEFT); // Move left
+      } else if (envRight > EMG_THRESHOLD_RIGHT && envRight > envLeft) {
+        player.dx = player.speed * (envRight / EMG_THRESHOLD_RIGHT); // Move right
+      } else {
+        player.dx *= 0; // Gradually stop (smoother movement)
+      }
+    }
+
+
+    function handleNotification(event) {
+      const value = event.target.value;
+      if (value.byteLength === NEW_PACKET_LEN) {
+        for (let i = 0; i < NEW_PACKET_LEN; i += SINGLE_SAMPLE_LEN) {
+          const sampleBuf = value.buffer.slice(i, i + SINGLE_SAMPLE_LEN);
+          processSample(new DataView(sampleBuf));
+        }
+      } else if (value.byteLength === SINGLE_SAMPLE_LEN) {
+        processSample(new DataView(value.buffer));
+      }
+    }
+
+    const connectBtn = document.getElementById("connectBtn");
+    const disconnectBtn = document.getElementById("disconnectBtn");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+
+    // Initially only "Connect" is enabled
+    connectBtn.disabled = false;
+    disconnectBtn.disabled = true;
+    startBtn.disabled = true;
+    stopBtn.disabled = true;
+
+    function updateButtonStates() {
+      connectBtn.disabled = connected || streaming;
+      disconnectBtn.disabled = !connected;
+      startBtn.disabled = !connected || streaming;
+      stopBtn.disabled = !streaming;
+      channelSelector.disabled = !connected;
+      gainSlider.disabled = !connected;
+
+      const statusEl = document.getElementById("statusText");
+      if (!connected) statusEl.textContent = "Not connected";
+      else if (!streaming) statusEl.textContent = "Connected but not streaming";
+      else statusEl.textContent = "Connected and streaming data";
+    }
+
+    async function connectBLE() {
+      try {
+        if (!navigator.bluetooth) {
+          alert("Web Bluetooth API not available. Use Chrome or Edge.");
+          return;
+        }
+        device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: "NPG" }],
+          optionalServices: [SERVICE_UUID],
+        });
+        server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
+        dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
+        connected = true; streaming = false;
+        dataCh0 = new Array(500).fill(0);
+        dataCh1 = new Array(500).fill(0);
+        fftBuffer = new Array(FFT_SIZE).fill(0);
+        updateButtonStates();
+        console.log("Device connected.");
+      } catch (err) {
+        console.log("Error:", err);
+        alert("Connection error: " + err);
+      }
+    }
+
+    async function disconnectBLE() {
+      try {
+        if (device && device.gatt.connected) {
+          if (streaming) await stopStream();
+          device.gatt.disconnect();
+        }
+        connected = false;
+        streaming = false;
+        updateButtonStates();
+        console.log("Device disconnected.");
+      } catch (err) {
+        console.log("Error disconnecting:", err);
+      }
+    }
+
+    async function startStream() {
+      try {
+        if (!dataChar || !controlChar) return;
+        await controlChar.writeValue(new TextEncoder().encode("START"));
+        await dataChar.startNotifications();
+        dataChar.addEventListener("characteristicvaluechanged", handleNotification);
+        streaming = true;
+        updateButtonStates();
+        console.log("Streaming started.");
+      } catch (err) {
+        console.log("Error starting stream:", err);
+        alert("Error starting stream: " + err);
+      }
+    }
+
+    async function stopStream() {
+      try {
+        if (dataChar && streaming) {
+          await dataChar.stopNotifications();
+          dataChar.removeEventListener("characteristicvaluechanged", handleNotification);
+          streaming = false;
+          updateButtonStates();
+          console.log("Streaming stopped.");
+        }
+      } catch (err) {
+        console.log("Error stopping stream:", err);
+      }
+    }
+
+    connectBtn.addEventListener("click", connectBLE);
+    disconnectBtn.addEventListener("click", disconnectBLE);
+    startBtn.addEventListener("click", startStream);
+    stopBtn.addEventListener("click", stopStream);
+  </script>
+</body>
+
+</html>
