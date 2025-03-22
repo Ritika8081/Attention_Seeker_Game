@@ -2,6 +2,8 @@
 
 *Attention Seeker* is an innovative neurofeedback game designed to help individuals enhance their focus in a fun and engaging way.
 
+![Attention Seeker](assets/hackster-hero-image.jpg)
+
 ### Game Objective
 Control a spaceship using your focus (EEG) and hand movements (EMG) to navigate through space and destroy obstacles.
 
