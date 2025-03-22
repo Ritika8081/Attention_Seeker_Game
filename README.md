@@ -52,3 +52,5 @@ Since data is transmitted via *BLE (Bluetooth Low Energy)*:
 - *Destroy Obstacles*: Focus to fire and clear your path.
 
 Enjoy playing *Attention Seeker* and improve your focus! 🚀
+
+Want a complete tutorial on how to use the game, click [here](https://www.hackster.io/ritikamishra8081/attention-seeker-game-controlled-with-your-mind-eeg-bd2ce7)
