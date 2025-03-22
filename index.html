@@ -13,7 +13,7 @@
   <div id="mainContainer">
     <!-- Header with title and controls -->
     <header id="topBar">
-      <h1>EEG + Game</h1>
+
       <div class="controls-group">
         <button id="connectBtn" class="btn">Connect</button>
         <button id="disconnectBtn" class="btn">Disconnect</button>
@@ -47,10 +47,11 @@
           <canvas id="plotCanvas"></canvas>
         </div>
 
-        <!-- Brainwave Bar Graph -->
+        <!-- Brainwave Bar Graph (hidden) and Beta Threshold Control (visible) -->
         <div class="eeg-panel">
-          <h2>Brainwave Activity</h2>
-          <div id="barGraphContainer">
+          <h2>Beta Threshold Control</h2>
+          <!-- Hide the bar graph container -->
+          <div id="barGraphContainer" style="display: none;">
             <div id="barGraph">
               <div class="bar-container">
                 <div class="bar" id="deltaBar"></div>
@@ -80,6 +81,7 @@
             </div>
           </div>
 
+          <!-- Keep the threshold control visible -->
           <div class="threshold-control">
             <label for="betaThresholdSlider">Beta Threshold:</label>
             <input type="range" id="betaThresholdSlider" min="0" max="1" step="0.01" value="0.40">
@@ -89,7 +91,7 @@
 
         <!-- EMG Control Thresholds -->
         <div class="eeg-panel">
-          <h2>EMG Movement Controls</h2>
+
           <div class="slider-container">
             <div>
               <div class="container" id="container-left">
