@@ -110,11 +110,11 @@ const player = {
 
 // Load spaceship image and maintain aspect ratio
 const spaceshipImg = new Image();
-spaceshipImg.src = "spaceship.png";  
+spaceshipImg.src = "assets/spaceship.png";  
 
 spaceshipImg.onload = () => {
     const aspectRatio = spaceshipImg.width / spaceshipImg.height;
-    player.width = 300;  
+    player.width = 150;  
     player.height = player.width / aspectRatio;
 };
 
