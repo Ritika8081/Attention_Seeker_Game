@@ -196,32 +196,7 @@
         gctx.fill();
       });
     }
-    class HighPassFilter45Hz {
-      constructor(sampleRate = 500) {
-        const fc = 45;
-        const fs = sampleRate;
-        const omegaC = (2 * Math.PI * fc) / fs;
-        const K = Math.tan(omegaC / 2);
-        this.a0 = 1 + Math.SQRT2 * K + K * K;
-        this.a1 = -2 * (K * K - 1);
-        this.a2 = 1 - Math.SQRT2 * K + K * K;
-        this.b0 = 1;
-        this.b1 = -2;
-        this.b2 = 1;
-        this.x1 = 0;
-        this.x2 = 0;
-        this.y1 = 0;
-        this.y2 = 0;
-      }
-      process(input) {
-        const output = (this.b0 * input + this.b1 * this.x1 + this.b2 * this.x2 - this.a1 * this.y1 - this.a2 * this.y2) / this.a0;
-        this.x2 = this.x1;
-        this.x1 = input;
-        this.y2 = this.y1;
-        this.y1 = output;
-        return output;
-      }
-    }
+    
     // ---------------- Added Envelope Filter for EMG Data ----------------
     class EnvelopeFilter {
       constructor(bufferSize) {
@@ -436,7 +411,7 @@
       const a = 16384;
       return (sample - a / 2) * (2 / a);
     }
-    function applyFilter(input, state) {
+    function EEGFilter(input, state) {
       state.x1 = input - (-1.47548044 * state.z1) - (0.58691951 * state.z2);
       const output = 0.02785977 * state.x1 + 0.05571953 * state.z1 + 0.02785977 * state.z2;
       state.z2 = state.z1;
@@ -527,6 +502,7 @@
       data_index = (data_index + 1) % buffer_size;
       return sum / buffer_size;
     }
+
     function updateBarGraph(deltaP, thetaP, alphaP, betaP, gammaP) {
       // Calculate each band power as a percentage of the total power
       const total = deltaP + thetaP + alphaP + betaP + gammaP;
@@ -536,7 +512,7 @@
       const alphaPerc = (alphaP / total) * 100;
       const betaPerc = getSmoothedBeta((betaP / total) * 100);
       const gammaPerc = (gammaP / total) * 100;
-
+      console.log(deltaPerc,thetaPerc,alphaPerc,betaPerc,gammaPerc)
       // Trigger action if beta percentage exceeds threshold
       if (betaPerc >= betaThreshold) {
         if (typeof window.shootBullet === 'function') {
@@ -569,7 +545,7 @@
     }
 
 
-    function updateData(eegValue, dummy) {
+    function updateData(eegValue) {
       eegValue = notchFilterCh0.process(eegValue, 1);
       dataCh0.push(eegValue);
       if (dataCh0.length > 500) dataCh0.shift();
@@ -638,9 +614,6 @@
       slider.addEventListener('mousedown', handleMouseDown);
     });
 
-    // Updated processSample: Reads EEG (offset 3) and EMG channels.
-    const highPass45Left = new HighPassFilter45Hz(500);
-    const highPass45Right = new HighPassFilter45Hz(500);
 
     const connectBtn = document.getElementById("connectBtn");
     const disconnectBtn = document.getElementById("disconnectBtn");
@@ -759,8 +732,8 @@
             console.log(channels[0]);
           }
           const normEEG = normalizeSample(Math.max(0, Math.min(16383, channels[0])));
-          const filteredEEG = applyFilter(normEEG, filterStateCh0);
-          updateData(filteredEEG, filteredEEG);
+          const filteredEEG = EEGFilter(normEEG, filterStateCh0);
+          updateData(filteredEEG);
           const rawEMGLeft = channels[1];
           const rawEMGRight = channels[2];
           // EMG processing can be added here if needed
