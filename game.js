@@ -252,3 +252,52 @@ function gameLoop() {
 // Start game
 setInterval(spawnEnemy, 2000);
 gameLoop();
+
+// Sidebar panel switching logic
+window.addEventListener('DOMContentLoaded', function() {
+  const sidebar = document.getElementById('eegSection');
+  const icons = sidebar.querySelectorAll('.sidebar-icon');
+  const panels = sidebar.querySelectorAll('.sidebar-panel');
+  const closeBtns = sidebar.querySelectorAll('.close-panel');
+
+  function openPanel(panelName) {
+    sidebar.classList.add('expanded');
+    panels.forEach(panel => {
+      if (panel.id === 'panel-' + panelName) {
+        panel.classList.add('active');
+      } else {
+        panel.classList.remove('active');
+      }
+    });
+    icons.forEach(icon => {
+      if (icon.dataset.panel === panelName) {
+        icon.classList.add('active');
+      } else {
+        icon.classList.remove('active');
+      }
+    });
+  }
+
+  icons.forEach(icon => {
+    icon.addEventListener('click', function() {
+      const panelName = this.dataset.panel;
+      // If already open, close it
+      const isActive = this.classList.contains('active');
+      if (isActive) {
+        sidebar.classList.remove('expanded');
+        panels.forEach(panel => panel.classList.remove('active'));
+        icons.forEach(ic => ic.classList.remove('active'));
+      } else {
+        openPanel(panelName);
+      }
+    });
+  });
+
+  closeBtns.forEach(btn => {
+    btn.addEventListener('click', function() {
+      sidebar.classList.remove('expanded');
+      panels.forEach(panel => panel.classList.remove('active'));
+      icons.forEach(ic => ic.classList.remove('active'));
+    });
+  });
+});
