@@ -6,104 +6,90 @@
   <title>EEG + Game Single Screen</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
 
 </head>
 
 <body>
   <div id="mainContainer">
-   
+
     <div id="contentContainer">
       <!-- Left column: Game -->
       <div id="gameSection">
         <canvas id="gameCanvas"></canvas>
       </div>
 
-      <!-- Right column: EEG data visualization -->
-      <div id="eegSection">
-        <!-- EEG Waveform plot -->
-        <div class="eeg-panel">
-          <h2>EEG Waveform</h2>
-          <canvas id="plotCanvas"></canvas>
-        </div>
-        <div class="controls-group">
-        <button id="connectBtn" class="btn">Connect</button>
-        <button id="disconnectBtn" class="btn">Disconnect</button>
-        <button id="startBtn" class="btn">Start</button>
-        <button id="stopBtn" class="btn">Stop</button>
-        <select id="channelSelector" style="display: none;">
-          <option value="all">All Channels</option>
-          <option value="ch0">Channel 0</option>
-          <option value="ch1">Channel 1</option>
-          <option value="ch2">Channel 2</option>
-        </select>
-        <div class="slider-wrapper" style="display: none;">
-          <label for="gainSlider">Gain:</label>
-          <input type="range" id="gainSlider" min="0.1" max="5" step="0.1" value="1">
-        </div>
-        <div id="statusText">Waiting for connection...</div>
-      </div>
-        <!-- Brainwave Bar Graph (hidden) and Beta Threshold Control (visible) -->
-        <div class="eeg-panel">
-          <h2>Beta Threshold Control</h2>
-          <!-- Hide the bar graph container -->
-          <div id="barGraphContainer" style="display: none;">
-            <div id="barGraph">
-              <div class="bar-container">
-                <div class="bar" id="deltaBar"></div>
-                <div class="bar-label">Delta</div>
-                <div class="bar-value" id="deltaValue">0%</div>
-              </div>
-              <div class="bar-container">
-                <div class="bar" id="thetaBar"></div>
-                <div class="bar-label">Theta</div>
-                <div class="bar-value" id="thetaValue">0%</div>
-              </div>
-              <div class="bar-container">
-                <div class="bar" id="alphaBar"></div>
-                <div class="bar-label">Alpha</div>
-                <div class="bar-value" id="alphaValue">0%</div>
-              </div>
-              <div class="bar-container">
-                <div class="bar" id="betaBar"></div>
-                <div class="bar-label">Beta</div>
-                <div class="bar-value" id="betaValue">0%</div>
-              </div>
-              <div class="bar-container">
-                <div class="bar" id="gammaBar"></div>
-                <div class="bar-label">Gamma</div>
-                <div class="bar-value" id="gammaValue">0%</div>
-              </div>
+      <!-- Settings Button -->
+      <button id="settingsBtn" title="Settings"><i class="fas fa-cog"></i></button>
+
+      <!-- Settings Modal -->
+      <div id="settingsModal" class="modal">
+        <div class="modal-content">
+          <span class="close-modal">&times;</span>
+          <h2><i class="fas fa-sliders-h"></i> Controls</h2>
+          <div class="controls-group">
+            <button id="connectBtn" class="btn"><i class="fas fa-plug"></i> Connect</button>
+            <button id="disconnectBtn" class="btn"><i class="fas fa-unlink"></i> Disconnect</button>
+            <button id="startBtn" class="btn"><i class="fas fa-play"></i> Start</button>
+            <button id="stopBtn" class="btn"><i class="fas fa-stop"></i> Stop</button>
+            <select id="channelSelector" style="display: none;">
+              <option value="all">All Channels</option>
+              <option value="ch0">Channel 0</option>
+              <option value="ch1">Channel 1</option>
+              <option value="ch2">Channel 2</option>
+            </select>
+            <canvas id="plotCanvas" style="display: none;"></canvas>
+
+            <div class="slider-wrapper" style="display: none;">
+              <label for="gainSlider"><i class="fas fa-sliders-h"></i> Gain:</label>
+              <input type="range" id="gainSlider" min="0.1" max="5" step="0.1" value="1">
             </div>
           </div>
+          <div id="statusText"><i class="fas fa-circle-notch fa-spin"></i> Waiting for connection...</div>
 
-          <!-- Keep the threshold control visible -->
+          <hr style="margin: 30px 0; border-color: rgba(255,255,255,0.1);">
+
+          <h2><i class="fas fa-brain"></i> Beta Threshold Calibration</h2>
           <div class="threshold-control">
-            
-            <input type="range" id="betaThresholdSlider" min="0" max="1" step="0.01" value="0.40">
-            <span id="betaThresholdValue">0.40</span>
+            <div id="calibrationStatus"><i class="fas fa-hourglass-half"></i> Click to start calibration</div>
+            <div style="margin-top: 10px;">Threshold: <strong id="betaThresholdValue">--</strong></div>
+            <div id="calibrationTimer" style="font-size: 1.5rem; margin-top: 0.5rem;"></div>
           </div>
-        </div>
+          <button id="calibrateBtn" class="btn" onclick="startCalibration()" style="margin-top: 12px;">
+            <i class="fas fa-sync-alt"></i> Calibrate Now
+          </button>
 
-        <!-- EMG Control Thresholds -->
-        <div class="eeg-panel">
+          <hr style="margin: 30px 0; border-color: rgba(255,255,255,0.1);">
 
+          <h2><i class="fas fa-dumbbell"></i> EMG Sliders</h2>
           <div class="slider-container">
             <div>
               <div class="container" id="container-left">
                 <div class="slider" id="lower-left"></div>
               </div>
-              <div class="slider-label">Left Threshold</div>
+              <div class="slider-label"><i class="fas fa-hand-point-left"></i> Left Threshold: <span
+                  id="leftEMGThresholdValue">--</span></div>
             </div>
             <div>
               <div class="container" id="container-right">
                 <div class="slider" id="lower-right"></div>
               </div>
-              <div class="slider-label">Right Threshold</div>
+              <div class="slider-label"><i class="fas fa-hand-point-right"></i> Right Threshold: <span
+                  id="rightEMGThresholdValue">--</span></div>
             </div>
+          </div>
+          <div style="margin-top: 1rem;">
+            <div id="emgCalibrationStatus"><i class="fas fa-info-circle"></i> Click below to calibrate</div>
+            <div id="emgCalibrationTimer" style="font-weight: bold; margin: 6px 0;"></div>
+            <button onclick="startEMGCalibration()" class="btn" style="margin-top: 8px;">
+              <i class="fas fa-bolt"></i> Calibrate EMG
+            </button>
           </div>
           <div id="output" class="threshold-output"></div>
         </div>
       </div>
+
     </div>
   </div>
   <!-- Game JS -->
@@ -111,6 +97,26 @@
     // ============ GAME CODE ============
     const gameCanvas = document.getElementById("gameCanvas");
     const gctx = gameCanvas.getContext("2d");
+    let emgLeftMaxRef = 1;
+    let emgRightMaxRef = 1;
+
+
+    let betaBuffer = [];
+    let isCalibrating = false;
+    let betaThreshold = 0.4;
+    let calibrationInterval = null;
+    let calibrationStartTime = null;
+    let isEMGCalibrating = false;
+    let emgLeftBuffer = [];
+    let emgRightBuffer = [];
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    const closeModal = document.querySelector('.close-modal');
+    let emgLeftThreshold = 0.3;
+    let emgRightThreshold = 0.3;
+    let envLeft = 0;
+    let envRight = 0;
+    const EMG_MAX_REF = 3000; // Can be adjusted based on your signal amplitude
 
 
     function resizeGameCanvas() {
@@ -139,7 +145,55 @@
         speed: Math.random() * 2 + 0.5
       });
     }
-   
+
+    settingsBtn.addEventListener('click', () => {
+      settingsModal.style.display = 'block';
+    });
+
+    closeModal.addEventListener('click', () => {
+      settingsModal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (e) => {
+      if (e.target === settingsModal) {
+        settingsModal.style.display = 'none';
+      }
+    });
+
+
+    function startCalibration() {
+      betaBuffer = [];
+      isCalibrating = true;
+      document.getElementById('calibrationStatus').innerHTML = `<i class="fas fa-spinner fa-spin"></i> Calibrating...`;
+      document.getElementById('betaThresholdValue').textContent = "--";
+
+      let secondsLeft = 5;
+      const timerDisplay = document.getElementById('calibrationTimer');
+      timerDisplay.textContent = `${secondsLeft}s`;
+
+      const countdown = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft > 0) {
+          timerDisplay.textContent = `${secondsLeft}s`;
+        } else {
+          clearInterval(countdown);
+          timerDisplay.textContent = '';
+        }
+      }, 1000);
+
+      setTimeout(() => {
+        isCalibrating = false;
+        if (betaBuffer.length > 0) {
+          const max = Math.max(...betaBuffer);
+          betaThreshold = max * 0.7;
+          document.getElementById('betaThresholdValue').textContent = betaThreshold.toFixed(3);
+          document.getElementById('calibrationStatus').innerHTML = `<i class="fas fa-check-circle"></i> Calibrated`;
+        } else {
+          document.getElementById('betaThresholdValue').textContent = "0.000";
+          document.getElementById('calibrationStatus').innerHTML = `<i class="fas fa-exclamation-triangle"></i> No beta data`;
+        }
+      }, 5000);
+    }
 
     function updateBackground() {
       stars.forEach(star => {
@@ -149,7 +203,41 @@
           star.x = Math.random() * gameCanvas.width;
         }
       });
-    
+
+    }
+    function startEMGCalibration() {
+      emgLeftBuffer.length = 0;
+      emgRightBuffer.length = 0;
+      isEMGCalibrating = true;
+
+      document.getElementById('emgCalibrationStatus').innerHTML = `<i class="fas fa-spinner fa-spin"></i> Calibrating...`;
+
+      setTimeout(() => {
+        isEMGCalibrating = false;
+
+        if (emgLeftBuffer.length && emgRightBuffer.length) {
+          emgLeftMaxRef = Math.max(...emgLeftBuffer);
+          emgRightMaxRef = Math.max(...emgRightBuffer);
+
+          emgLeftThreshold = 0.7;  // 70% of max effort
+          emgRightThreshold = 0.7;
+
+          document.getElementById('leftEMGThresholdValue').textContent = (emgLeftThreshold * 100).toFixed(2) + '%';
+          document.getElementById('rightEMGThresholdValue').textContent = (emgRightThreshold * 100).toFixed(2) + '%';
+          document.getElementById('emgCalibrationStatus').innerHTML = `<i class="fas fa-check-circle"></i> Calibrated`;
+
+          console.log("🎯 EMG Calibration Summary:");
+          console.log(`Left max: ${emgLeftMaxRef.toFixed(2)} → Threshold: 70%`);
+          console.log(`Right max: ${emgRightMaxRef.toFixed(2)} → Threshold: 70%`);
+        } else {
+          document.getElementById('leftEMGThresholdValue').textContent = "--";
+          document.getElementById('rightEMGThresholdValue').textContent = "--";
+          document.getElementById('emgCalibrationStatus').innerHTML = `<i class="fas fa-exclamation-triangle"></i> No EMG data`;
+        }
+
+        emgLeftBuffer.length = 0;
+        emgRightBuffer.length = 0;
+      }, 5000);
     }
 
     // Nebula effect
@@ -534,7 +622,7 @@
         }
       }
     }
-    
+
     const fftProcessor = new FFT(FFT_SIZE);
 
     function calculateBandPower(fftMagnitudes, freqRange) {
@@ -547,15 +635,6 @@
       }
       return power;
     }
-    let betaThreshold = 0.40;  // initial threshold
-
-    const betaThresholdSlider = document.getElementById("betaThresholdSlider");
-    const betaThresholdValue = document.getElementById("betaThresholdValue");
-
-    betaThresholdSlider.addEventListener("input", (e) => {
-      betaThreshold = parseFloat(e.target.value);
-      betaThresholdValue.textContent = betaThreshold.toFixed(2);
-    });
 
 
     let buffer_size = 128;
@@ -578,25 +657,23 @@
       const betaRel = getSmoothedBeta(betaP / total);
       const gammaRel = gammaP / total;
 
-      // Focus shooting using dynamic threshold
-      if (betaRel >= betaThreshold) {
-        if (typeof window.shootBullet === 'function') {
-          window.shootBullet();
-        }
+
+      const normalizedBeta = Math.min(100, betaRel * 100);  // between 0–100
+
+      if (isCalibrating) {
+        betaBuffer.push(normalizedBeta);
+        console.log("Captured Beta %:", normalizedBeta.toFixed(2));
       }
 
-      // Update bars
-      document.getElementById("deltaBar").style.height = `${Math.round(deltaRel * 80)}px`;
-      document.getElementById("thetaBar").style.height = `${Math.round(thetaRel * 80)}px`;
-      document.getElementById("alphaBar").style.height = `${Math.round(alphaRel * 80)}px`;
-      document.getElementById("betaBar").style.height = `${Math.round(betaRel * 80)}px`;
-      document.getElementById("gammaBar").style.height = `${Math.round(gammaRel * 80)}px`;
+      console.log("β-rel:", betaRel.toFixed(3), "Threshold:", betaThreshold.toFixed(3));
 
-      document.getElementById("deltaValue").textContent = `${Math.round(deltaRel * 100)}%`;
-      document.getElementById("thetaValue").textContent = `${Math.round(thetaRel * 100)}%`;
-      document.getElementById("alphaValue").textContent = `${Math.round(alphaRel * 100)}%`;
-      document.getElementById("betaValue").textContent = `${Math.round(betaRel * 100)}%`;
-      document.getElementById("gammaValue").textContent = `${Math.round(gammaRel * 100)}%`;
+      // Focus shooting using dynamic threshold
+      if (normalizedBeta >= betaThreshold) {
+        console.log("🔥 Fire! β %:", normalizedBeta.toFixed(2), "≥", betaThreshold.toFixed(2));
+        if (typeof window.shootBullet === 'function') window.shootBullet();
+      }
+
+
     }
 
     function processFFT() {
@@ -658,62 +735,7 @@
     let activeSlider = null;
     let currentValues = { left: 50, right: 50 }; // Initial threshold values (50%)
 
-    // Function to update slider positions
-    function updateSliderPositions() {
-      sliders.left.style.top = `${currentValues.left}%`;
-      sliders.right.style.top = `${currentValues.right}%`;
-    }
-
-    // Function to update the output display
-    function updateOutput() {
-      output.textContent =
-        `Left Threshold: ${currentValues.left.toFixed(1)}% | ` +
-        `Right Threshold: ${currentValues.right.toFixed(1)}%`;
-    }
-
-    // Function to calculate the percentage based on mouse position
-    function getPercentage(clientY, container) {
-      const rect = container.getBoundingClientRect();
-      let y = clientY - rect.top;
-      y = Math.max(0, Math.min(y, rect.height));
-      return (y / rect.height) * 100;
-    }
-
-    // Handle mouse down event
-    function handleMouseDown(event) {
-      activeSlider = event.target.id.split('-')[1]; // 'left' or 'right'
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    // Handle mouse move event
-    function handleMouseMove(event) {
-      if (!activeSlider) return;
-
-      const container = containers[activeSlider];
-      const desired = getPercentage(event.clientY, container);
-      currentValues[activeSlider] = desired;
-
-      updateSliderPositions();
-      updateOutput();
-    }
-
-    // Handle mouse up event
-    function handleMouseUp() {
-      activeSlider = null;
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    }
-
-    // Initialize slider positions and events
-    updateSliderPositions();
-    updateOutput();
-    Object.values(sliders).forEach(slider => {
-      slider.addEventListener('mousedown', handleMouseDown);
-    });
-
     // Updated processSample: Now reads 3 channels (EEG at offset 1, EMG left at offset 3, EMG right at offset 5)
-    // Create instances for left and right EMG filtering
     const highPass45Left = new HighPassFilter45Hz(500);
     const highPass45Right = new HighPassFilter45Hz(500);
 
@@ -744,19 +766,47 @@
       const envLeft = envelopeFilterLeft.getEnvelope(Math.abs(filteredEMGLeft));
       const envRight = envelopeFilterRight.getEnvelope(Math.abs(filteredEMGRight));
 
-      // Get user-defined movement thresholds
-      const EMG_THRESHOLD_LEFT = 240;
-      const EMG_THRESHOLD_RIGHT = 240;
 
-
-      // Adjust movement logic
-      if (envLeft > EMG_THRESHOLD_LEFT && envLeft > envRight) {
-        player.dx = -player.speed * (envLeft / EMG_THRESHOLD_LEFT); // Move left
-      } else if (envRight > EMG_THRESHOLD_RIGHT && envRight > envLeft) {
-        player.dx = player.speed * (envRight / EMG_THRESHOLD_RIGHT); // Move right
-      } else {
-        player.dx *= 0; // Gradually stop (smoother movement)
+      if (isEMGCalibrating) {
+        emgLeftBuffer.push(envLeft);
+        emgRightBuffer.push(envRight);
       }
+
+      console.log(
+        "rawL:", rawEMGLeft,
+        "filteredL:", filteredEMGLeft.toFixed(2),
+        "envL:", envLeft.toFixed(2),
+        "| rawR:", rawEMGRight,
+        "filteredR:", filteredEMGRight.toFixed(2),
+        "envR:", envRight.toFixed(2)
+      );
+
+
+      console.log("envLeft:", envLeft.toFixed(2), "envRight:", envRight.toFixed(2));
+
+      // Normalize real-time envelope values based on calibrated max
+      const normEnvLeft = envLeft / emgLeftMaxRef;
+      const normEnvRight = envRight / emgRightMaxRef;
+
+      // Compare using fixed threshold % (like 70%)
+      const normLeft = normEnvLeft;
+      const normRight = normEnvRight;
+
+      if (normLeft > emgLeftThreshold && normLeft > normRight) {
+        player.dx = -player.speed;
+      } else if (normRight > emgRightThreshold && normRight > normLeft) {
+        player.dx = player.speed;
+      } else {
+        player.dx = 0;
+      }
+
+      // Optional log
+      console.log(
+        `envL: ${envLeft.toFixed(2)} (${(normEnvLeft * 100).toFixed(2)}%)`,
+        `envR: ${envRight.toFixed(2)} (${(normEnvRight * 100).toFixed(2)}%)`,
+        `→ dx: ${player.dx}`
+      );
+
     }
 
 
@@ -772,106 +822,103 @@
       }
     }
 
-    const connectBtn = document.getElementById("connectBtn");
-    const disconnectBtn = document.getElementById("disconnectBtn");
-    const startBtn = document.getElementById("startBtn");
-    const stopBtn = document.getElementById("stopBtn");
+    window.onload = function () {
+      const connectBtn = document.getElementById("connectBtn");
+      const disconnectBtn = document.getElementById("disconnectBtn");
+      const startBtn = document.getElementById("startBtn");
+      const stopBtn = document.getElementById("stopBtn");
+      const gainSlider = document.getElementById("gainSlider");
+      const channelSelector = document.getElementById("channelSelector");
 
-    // Initially only "Connect" is enabled
-    connectBtn.disabled = false;
-    disconnectBtn.disabled = true;
-    startBtn.disabled = true;
-    stopBtn.disabled = true;
+      let device = null, server = null, controlChar = null, dataChar = null;
+      let streaming = false, connected = false;
 
-    function updateButtonStates() {
-      connectBtn.disabled = connected || streaming;
-      disconnectBtn.disabled = !connected;
-      startBtn.disabled = !connected || streaming;
-      stopBtn.disabled = !streaming;
-      channelSelector.disabled = !connected;
-      gainSlider.disabled = !connected;
+      function updateButtonStates() {
+        connectBtn.disabled = connected || streaming;
+        disconnectBtn.disabled = !connected;
+        startBtn.disabled = !connected || streaming;
+        stopBtn.disabled = !streaming;
+        channelSelector.disabled = !connected;
+        gainSlider.disabled = !connected;
 
-      const statusEl = document.getElementById("statusText");
-      if (!connected) statusEl.textContent = "Not connected";
-      else if (!streaming) statusEl.textContent = "Connected but not streaming";
-      else statusEl.textContent = "Connected and streaming data";
-    }
+        const statusEl = document.getElementById("statusText");
+        if (!connected) statusEl.textContent = "Not connected";
+        else if (!streaming) statusEl.textContent = "Connected but not streaming";
+        else statusEl.textContent = "Connected and streaming data";
+      }
 
-    async function connectBLE() {
-      try {
-        if (!navigator.bluetooth) {
-          alert("Web Bluetooth API not available. Use Chrome or Edge.");
-          return;
+      async function connectBLE() {
+        try {
+          if (!navigator.bluetooth) {
+            alert("Web Bluetooth API not available.");
+            return;
+          }
+          device = await navigator.bluetooth.requestDevice({
+            filters: [{ namePrefix: "NPG" }],
+            optionalServices: ["4fafc201-1fb5-459e-8fcc-c5c9c331914b"],
+          });
+          server = await device.gatt.connect();
+          const service = await server.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+          controlChar = await service.getCharacteristic("0000ff01-0000-1000-8000-00805f9b34fb");
+          dataChar = await service.getCharacteristic("beb5483e-36e1-4688-b7f5-ea07361b26a8");
+
+          connected = true;
+          streaming = false;
+          updateButtonStates();
+          console.log("Device connected.");
+        } catch (err) {
+          console.error("Connection error:", err);
+          alert("Failed to connect: " + err.message);
         }
-        device = await navigator.bluetooth.requestDevice({
-          filters: [{ namePrefix: "NPG" }],
-          optionalServices: [SERVICE_UUID],
-        });
-        server = await device.gatt.connect();
-        const service = await server.getPrimaryService(SERVICE_UUID);
-        controlChar = await service.getCharacteristic(CONTROL_CHAR_UUID);
-        dataChar = await service.getCharacteristic(DATA_CHAR_UUID);
-        connected = true; streaming = false;
-        dataCh0 = new Array(500).fill(0);
-        dataCh1 = new Array(500).fill(0);
-        fftBuffer = new Array(FFT_SIZE).fill(0);
-        updateButtonStates();
-        console.log("Device connected.");
-      } catch (err) {
-        console.log("Error:", err);
-        alert("Connection error: " + err);
       }
-    }
 
-    async function disconnectBLE() {
-      try {
-        if (device && device.gatt.connected) {
-          if (streaming) await stopStream();
-          device.gatt.disconnect();
+      async function disconnectBLE() {
+        try {
+          if (device && device.gatt.connected) {
+            if (streaming) await stopStream();
+            device.gatt.disconnect();
+          }
+          connected = false;
+          streaming = false;
+          updateButtonStates();
+        } catch (err) {
+          console.error("Disconnect error:", err);
         }
-        connected = false;
-        streaming = false;
-        updateButtonStates();
-        console.log("Device disconnected.");
-      } catch (err) {
-        console.log("Error disconnecting:", err);
       }
-    }
 
-    async function startStream() {
-      try {
-        if (!dataChar || !controlChar) return;
-        await controlChar.writeValue(new TextEncoder().encode("START"));
-        await dataChar.startNotifications();
-        dataChar.addEventListener("characteristicvaluechanged", handleNotification);
-        streaming = true;
-        updateButtonStates();
-        console.log("Streaming started.");
-      } catch (err) {
-        console.log("Error starting stream:", err);
-        alert("Error starting stream: " + err);
+      async function startStream() {
+        try {
+          await controlChar.writeValue(new TextEncoder().encode("START"));
+          await dataChar.startNotifications();
+          dataChar.addEventListener("characteristicvaluechanged", handleNotification);
+          streaming = true;
+          updateButtonStates();
+        } catch (err) {
+          alert("Failed to start streaming: " + err.message);
+        }
       }
-    }
 
-    async function stopStream() {
-      try {
-        if (dataChar && streaming) {
+      async function stopStream() {
+        try {
           await dataChar.stopNotifications();
           dataChar.removeEventListener("characteristicvaluechanged", handleNotification);
           streaming = false;
           updateButtonStates();
-          console.log("Streaming stopped.");
+        } catch (err) {
+          console.error("Stop error:", err);
         }
-      } catch (err) {
-        console.log("Error stopping stream:", err);
       }
-    }
 
-    connectBtn.addEventListener("click", connectBLE);
-    disconnectBtn.addEventListener("click", disconnectBLE);
-    startBtn.addEventListener("click", startStream);
-    stopBtn.addEventListener("click", stopStream);
+      // Assign event listeners after DOM is ready
+      connectBtn.addEventListener("click", connectBLE);
+      disconnectBtn.addEventListener("click", disconnectBLE);
+      startBtn.addEventListener("click", startStream);
+      stopBtn.addEventListener("click", stopStream);
+    };
+
+
   </script>
+
 </body>
 
 </html>
