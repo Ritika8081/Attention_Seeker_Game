@@ -108,7 +108,7 @@
     };
 
     const spaceshipImg = new Image();
-    spaceshipImg.src = "assets/spaceship.svg";
+    spaceshipImg.src = "./assets/spaceship.svg";
 
     function setPlayerPosition() {
       // Center horizontally
@@ -199,13 +199,7 @@
         settingsModal.style.display = 'none';
       }
     });
-    const playerImage = new Image();
-    playerImage.src = "assets/player.png";
-
-    playerImage.onload = () => {
-      initializeGame();
-      gameLoop();
-    };
+  
 
 
     function startCalibration() {
