@@ -122,18 +122,18 @@
     function resizeGameCanvas() {
       gameCanvas.width = window.innerWidth;
       gameCanvas.height = window.innerHeight;
-      
+
       // Responsive spaceship sizing
       const baseWidth = Math.min(250, gameCanvas.width * 0.12); // 12% of screen width
       player.width = baseWidth;
-      
+
       if (spaceshipImg.complete && spaceshipImg.naturalWidth > 0) {
         const aspectRatio = spaceshipImg.width / spaceshipImg.height;
         player.height = player.width / aspectRatio;
       } else {
         player.height = baseWidth; // Fallback square ratio
       }
-      
+
       setPlayerPosition();
     }
 
@@ -435,19 +435,29 @@
 
     // Enemies
     const enemies = [];
+    // Enhanced enemy spawning with limit
+    const MAX_ENEMIES = 10; // Limit number of enemies on screen
+
     function spawnEnemy() {
+      // Don't spawn if game is paused or too many enemies exist
+      if (!gameRunning || !isPageVisible || enemies.length >= MAX_ENEMIES) {
+        return;
+      }
+
       const enemySize = 130;
-      // Select a random asteroid image from the preloaded array
       const randomIndex = Math.floor(Math.random() * asteroidImages.length);
+
       enemies.push({
         x: Math.random() * (gameCanvas.width - enemySize),
         y: -enemySize,
         width: enemySize,
         height: enemySize,
         speed: 2,
-        image: asteroidImages[randomIndex]
+        image: asteroidImages[randomIndex],
+        spawnTime: performance.now() // Track when enemy was spawned
       });
     }
+
     function updateEnemies() {
       enemies.forEach((enemy, i) => {
         enemy.y += enemy.speed;
@@ -509,7 +519,81 @@
       });
     }
 
-    function gameLoop() {
+    // Add this code after your existing game variables
+    let gameRunning = true;
+    let lastTime = 0;
+    let enemySpawnInterval = null;
+
+    // Page Visibility API to detect when tab is hidden/visible
+    let isPageVisible = !document.hidden;
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        // Page is hidden - pause the game
+        pauseGame();
+      } else {
+        // Page is visible - resume the game
+        resumeGame();
+      }
+    }
+
+    function pauseGame() {
+      console.log("🎮 Game Paused - Tab Hidden");
+      gameRunning = false;
+      isPageVisible = false;
+
+      // Clear enemy spawn interval
+      if (enemySpawnInterval) {
+        clearInterval(enemySpawnInterval);
+        enemySpawnInterval = null;
+      }
+    }
+
+    function resumeGame() {
+      console.log("🎮 Game Resumed - Tab Visible");
+      gameRunning = true;
+      isPageVisible = true;
+      lastTime = performance.now(); // Reset timing
+
+      // Restart enemy spawning
+      startEnemySpawning();
+    }
+
+    // Enhanced enemy spawning with proper interval management
+    function startEnemySpawning() {
+      // Clear any existing interval first
+      if (enemySpawnInterval) {
+        clearInterval(enemySpawnInterval);
+      }
+
+      // Start new interval only if game is running
+      if (gameRunning && isPageVisible) {
+        enemySpawnInterval = setInterval(() => {
+          if (gameRunning && isPageVisible) {
+            spawnEnemy();
+          }
+        }, 2000);
+      }
+    }
+
+    // Enhanced game loop with visibility check
+    function gameLoop(currentTime) {
+      // Only run game logic if page is visible and game is running
+      if (!gameRunning || !isPageVisible) {
+        requestAnimationFrame(gameLoop);
+        return;
+      }
+
+      // Calculate delta time for smooth animation
+      const deltaTime = currentTime - lastTime;
+      lastTime = currentTime;
+
+      // Skip frame if delta time is too large (tab was hidden)
+      if (deltaTime > 100) {
+        requestAnimationFrame(gameLoop);
+        return;
+      }
+
       gctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
       updateBackground();
       drawBackground();
@@ -520,11 +604,61 @@
       drawPlayer();
       drawEnemies();
       drawBullets();
+
       requestAnimationFrame(gameLoop);
     }
-    setInterval(spawnEnemy, 2000);
-    gameLoop();
 
+    // Enhanced enemy update with bounds checking
+    function updateEnemies() {
+      enemies.forEach((enemy, i) => {
+        if (gameRunning && isPageVisible) {
+          enemy.y += enemy.speed;
+
+          // Remove enemies that are off screen
+          if (enemy.y > gameCanvas.height + enemy.height) {
+            enemies.splice(i, 1);
+          }
+        }
+      });
+    }
+
+    // Enhanced bullet update
+    function updateBullets() {
+      bullets.forEach((bullet, i) => {
+        if (gameRunning && isPageVisible) {
+          bullet.y -= bullet.speed;
+
+          // Remove bullets that are off screen
+          if (bullet.y < -bullet.height) {
+            bullets.splice(i, 1);
+          }
+        }
+      });
+    }
+
+    // Add event listeners for visibility change
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Also handle window focus/blur as backup
+    window.addEventListener('focus', () => {
+      if (!isPageVisible) resumeGame();
+    });
+
+    window.addEventListener('blur', () => {
+      if (isPageVisible) pauseGame();
+    });
+
+    // Initialize the game properly
+    function initializeGame() {
+      lastTime = performance.now();
+      startEnemySpawning();
+      gameLoop(lastTime);
+    }
+
+    // Replace your existing game initialization
+    // Remove the old: setInterval(spawnEnemy, 2000); and gameLoop();
+    // Replace with:
+    initializeGame();
   </script>
 
 

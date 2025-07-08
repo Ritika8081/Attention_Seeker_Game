@@ -48,7 +48,7 @@ h1 {
 h2 {
   font-size: clamp(1rem, 3vw, 1.125rem); /* Responsive font size */
   margin: 0 0 15px;
-  color: #1a237e;
+  color: #d9dae1;
 }
 
 .controls-group {
@@ -274,7 +274,7 @@ label {
 }
 
 .modal-content {
-  background: #1e293b;
+  background: #2a3343;
   margin: 60px auto;
   padding: 30px;
   border-radius: 12px;
