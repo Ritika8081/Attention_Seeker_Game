@@ -108,7 +108,7 @@
     };
 
     const spaceshipImg = new Image();
-    spaceshipImg.src = "assets/spaceship.png";
+    spaceshipImg.src = "assets/spaceship.svg";
 
     function setPlayerPosition() {
       // Center horizontally
@@ -345,7 +345,7 @@
        * @returns {number} Filtered output
        */
       process(input) {
-       
+
         // (coefficients for 500 Hz sampling, 70 Hz center)
         this.x1 = input - (-0.82523238 * this.z1) - (0.29463653 * this.z2);
 
@@ -378,7 +378,7 @@
       getEnvelope(absEmg) {
         this.sum -= this.circularBuffer[this.dataIndex];
         this.sum += absEmg;
-        this.circularBuffer[this.dataIndex] = absEmg;
+        this.circularBuffer[this.dataIndex] = absEmg
         this.dataIndex = (this.dataIndex + 1) % this.bufferSize;
         return this.sum / this.bufferSize;
       }
@@ -386,6 +386,8 @@
     // Create envelope filters for each EMG channel
     const envelopeFilterLeft = new EnvelopeFilter(64);
     const envelopeFilterRight = new EnvelopeFilter(64);
+
+
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "ArrowLeft") player.dx = -player.speed;
@@ -635,21 +637,25 @@
       gameLoop(lastTime);
     }
 
-  // Resize canvas to match layout
-resizeGameCanvas();
+    window.addEventListener("load", () => {
+      resizeGameCanvas();
+      initializeGame();
 
-// Set up background before game loop starts
-updateNebulaColors();     // sets color values
-updateBackground();       // applies motion if you use it
-drawBackground();         // draws dark galaxy gradient
+      // Draw first static frame
+      updateNebulaColors();
+      updateBackground();
+      drawBackground();
+      drawPlayer();
+      drawEnemies();
+      drawBullets();
 
-// Draw static frame of game
-if (player) drawPlayer();
-if (enemies) drawEnemies();
-if (bullets) drawBullets();
+      // ✅ Start the game loop immediately
+      gameLoop();
 
-
-    initializeGame();
+      // ✅ Hide the loading overlay
+      const overlay = document.querySelector(".loading-overlay");
+      if (overlay) overlay.classList.add("hidden");
+    });
 
   </script>
 
