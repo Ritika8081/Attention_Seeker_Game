@@ -60,10 +60,10 @@
             <i class="fas fa-sync-alt"></i> Calibrate Now
           </button>
 
-          <hr style="margin: 30px 0; border-color: rgba(255,255,255,0.1);">
+          <!-- <hr style="margin: 30px 0; border-color: rgba(255,255,255,0.1);">
 
-          <h2><i class="fas fa-dumbbell"></i> EMG Sliders</h2>
-          <div class="slider-container">
+          <h2><i class="fas fa-dumbbell"></i> EMG Sliders</h2> -->
+          <div class="slider-container" style="display: none;">
             <div>
               <div class="container" id="container-left">
                 <div class="slider" id="lower-left"></div>
@@ -79,7 +79,7 @@
                   id="rightEMGThresholdValue">--</span></div>
             </div>
           </div>
-          <div style="margin-top: 1rem;">
+          <div style="margin-top: 1rem; display: none;">
             <div id="emgCalibrationStatus"><i class="fas fa-info-circle"></i> Click below to calibrate</div>
             <div id="emgCalibrationTimer" style="font-weight: bold; margin: 6px 0;"></div>
             <button onclick="startEMGCalibration()" class="btn" style="margin-top: 8px;">
@@ -97,6 +97,56 @@
     // ============ GAME CODE ============
     const gameCanvas = document.getElementById("gameCanvas");
     const gctx = gameCanvas.getContext("2d");
+
+    // Player spaceship with responsive positioning
+    const player = {
+      x: 0,
+      y: 0,
+      speed: 5,
+      dx: 0,
+      dy: 0,
+      width: 50,
+      height: 50
+    };
+
+    const spaceshipImg = new Image();
+    spaceshipImg.src = "assets/spaceship.png";
+
+    function setPlayerPosition() {
+      // Center horizontally
+      player.x = (gameCanvas.width - player.width) / 2;
+      // Position near bottom with some padding
+      player.y = gameCanvas.height - player.height - 80;
+    }
+
+    function resizeGameCanvas() {
+      gameCanvas.width = window.innerWidth;
+      gameCanvas.height = window.innerHeight;
+      
+      // Responsive spaceship sizing
+      const baseWidth = Math.min(250, gameCanvas.width * 0.12); // 12% of screen width
+      player.width = baseWidth;
+      
+      if (spaceshipImg.complete && spaceshipImg.naturalWidth > 0) {
+        const aspectRatio = spaceshipImg.width / spaceshipImg.height;
+        player.height = player.width / aspectRatio;
+      } else {
+        player.height = baseWidth; // Fallback square ratio
+      }
+      
+      setPlayerPosition();
+    }
+
+    spaceshipImg.onload = () => {
+      const aspectRatio = spaceshipImg.width / spaceshipImg.height;
+      player.height = player.width / aspectRatio;
+      setPlayerPosition();
+    };
+
+    // Initialize and handle resize
+    window.addEventListener("resize", resizeGameCanvas);
+    resizeGameCanvas();
+
     let emgLeftMaxRef = 1;
     let emgRightMaxRef = 1;
 
@@ -112,19 +162,11 @@
     const settingsBtn = document.getElementById('settingsBtn');
     const settingsModal = document.getElementById('settingsModal');
     const closeModal = document.querySelector('.close-modal');
-    let emgLeftThreshold = 0.3;
-    let emgRightThreshold = 0.3;
+    let emgLeftThreshold = 100;
+    let emgRightThreshold = 100;
     let envLeft = 0;
     let envRight = 0;
     const EMG_MAX_REF = 3000; // Can be adjusted based on your signal amplitude
-
-
-    function resizeGameCanvas() {
-      gameCanvas.width = window.innerWidth;
-      gameCanvas.height = window.innerHeight;
-    }
-    window.addEventListener("resize", resizeGameCanvas);
-    resizeGameCanvas();
 
     // Preload custom asteroid images (asteroid1.png ... asteroid14.png)
     const asteroidImages = [];
@@ -244,17 +286,34 @@
     let nebulaColor1 = { r: 50, g: 0, b: 150 };
     let nebulaColor2 = { r: 0, g: 0, b: 100 };
     function updateNebulaColors() {
-      nebulaColor1.r = 50 + Math.sin(Date.now() * 0.0001) * 100;
-      nebulaColor1.b = 150 + Math.sin(Date.now() * 0.0002) * 105;
-      nebulaColor2.g = 50;
-      nebulaColor2.b = 100 + Math.sin(Date.now() * 0.0003) * 100;
+      const t = Date.now();
+
+      // Violet-magenta base (nebulaColor1)
+      nebulaColor1.r = 40 + Math.sin(t * 0.0002) * 30; // Reddish-magenta (40–70)
+      nebulaColor1.g = 0;                             // Keep dark (optional: try 10–20 for subtle green)
+      nebulaColor1.b = 60 + Math.cos(t * 0.00015) * 40; // Bluish glow (20–100)
+
+      // Blue-teal highlight (nebulaColor2)
+      nebulaColor2.r = 0;
+      nebulaColor2.g = 20 + Math.sin(t * 0.00025) * 20; // Teal-greenish (0–40)
+      nebulaColor2.b = 40 + Math.sin(t * 0.0003) * 30;  // Deep blue (10–70)
     }
+
 
     function drawBackground() {
       updateNebulaColors();
       let gradient = gctx.createLinearGradient(0, 0, gameCanvas.width, gameCanvas.height);
-      gradient.addColorStop(0, `rgb(${Math.abs(nebulaColor1.r) % 255},0,${Math.abs(nebulaColor1.b) % 255})`);
-      gradient.addColorStop(1, `rgb(0,${Math.abs(nebulaColor2.g) % 255},${Math.abs(nebulaColor2.b) % 255})`);
+      const clamp = (value, max = 50) => Math.min(Math.abs(value) % 256, max);
+
+      gradient.addColorStop(
+        0,
+        `rgb(${clamp(nebulaColor1.r)}, 0, ${clamp(nebulaColor1.b)})`
+      );
+      gradient.addColorStop(
+        1,
+        `rgb(0, ${clamp(nebulaColor2.g)}, ${clamp(nebulaColor2.b)})`
+      );
+
       gctx.fillStyle = gradient;
       gctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
 
@@ -274,38 +333,40 @@
         gctx.fill();
       });
     }
-    class HighPassFilter45Hz {
-      constructor(sampleRate = 500) {
-        const fc = 45;
-        const fs = sampleRate;
-        const omegaC = (2 * Math.PI * fc) / fs;
-        const K = Math.tan(omegaC / 2);
-        this.a0 = 1 + Math.SQRT2 * K + K * K;
-        this.a1 = -2 * (K * K - 1);
-        this.a2 = 1 - Math.SQRT2 * K + K * K;
-        // b coefficients for a high-pass filter
-        this.b0 = 1;
-        this.b1 = -2;
-        this.b2 = 1;
-        // Initialize delay buffers for input and output
+    class EMGFilter {
+      constructor() {
+        // Internal filter state
+        this.z1 = 0;
+        this.z2 = 0;
         this.x1 = 0;
-        this.x2 = 0;
-        this.y1 = 0;
-        this.y2 = 0;
       }
 
+      /**
+       * Process one sample through the 70 Hz biquad section.
+       * @param {number} input Raw EMG sample
+       * @returns {number} Filtered output
+       */
       process(input) {
-        // Apply the difference equation
-        const output = (this.b0 * input + this.b1 * this.x1 + this.b2 * this.x2 - this.a1 * this.y1 - this.a2 * this.y2) / this.a0;
-        // Update the state
-        this.x2 = this.x1;
-        this.x1 = input;
-        this.y2 = this.y1;
-        this.y1 = output;
+        // Compute the new state variable
+        // (coefficients for 500 Hz sampling, 70 Hz center)
+        this.x1 = input - (-0.82523238 * this.z1) - (0.29463653 * this.z2);
+
+        // Compute filter output from SOS coefficients
+        const output =
+          0.52996723 * this.x1 +
+          -1.05993445 * this.z1 +
+          0.52996723 * this.z2;
+
+        // Shift the delay elements
+        this.z2 = this.z1;
+        this.z1 = this.x1;
+
         return output;
       }
     }
 
+    const EMGFilterLeft = new EMGFilter();
+    const EMGFilterRight = new EMGFilter();
 
     // ---------------- Added Envelope Filter for EMG Data ----------------
     class EnvelopeFilter {
@@ -315,36 +376,36 @@
         this.sum = 0;
         this.dataIndex = 0;
       }
+
       getEnvelope(absEmg) {
         this.sum -= this.circularBuffer[this.dataIndex];
         this.sum += absEmg;
         this.circularBuffer[this.dataIndex] = absEmg;
         this.dataIndex = (this.dataIndex + 1) % this.bufferSize;
-        // Multiply the average by 2 (or adjust as needed)
-        return (this.sum / this.bufferSize) * 2;
+        return this.sum / this.bufferSize;
       }
     }
     // Create envelope filters for each EMG channel
     const envelopeFilterLeft = new EnvelopeFilter(64);
     const envelopeFilterRight = new EnvelopeFilter(64);
 
-    // Player spaceship
-    const player = {
-      x: gameCanvas.width / 2,
-      y: gameCanvas.height - 150,
-      speed: 5,
-      dx: 0,
-      dy: 0,
-      width: 50,
-      height: 50
-    };
-    const spaceshipImg = new Image();
-    spaceshipImg.src = "assets/spaceship.png";  // Ensure spaceship.png is in the correct folder
-    spaceshipImg.onload = () => {
-      const aspectRatio = spaceshipImg.width / spaceshipImg.height;
-      player.width = 250;
-      player.height = player.width / aspectRatio;
-    };
+    // // Player spaceship
+    // const player = {
+    //   x: gameCanvas.width / 2,
+    //   y: gameCanvas.height - 150,
+    //   speed: 5,
+    //   dx: 0,
+    //   dy: 0,
+    //   width: 50,
+    //   height: 50
+    // };
+    // const spaceshipImg = new Image();
+    // spaceshipImg.src = "assets/spaceship.png";  // Ensure spaceship.png is in the correct folder
+    // spaceshipImg.onload = () => {
+    //   const aspectRatio = spaceshipImg.width / spaceshipImg.height;
+    //   player.width = 250;
+    //   player.height = player.width / aspectRatio;
+    // };
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "ArrowLeft") player.dx = -player.speed;
@@ -736,8 +797,8 @@
     let currentValues = { left: 50, right: 50 }; // Initial threshold values (50%)
 
     // Updated processSample: Now reads 3 channels (EEG at offset 1, EMG left at offset 3, EMG right at offset 5)
-    const highPass45Left = new HighPassFilter45Hz(500);
-    const highPass45Right = new HighPassFilter45Hz(500);
+    // const highPass45Left = new HighPassFilter45Hz(500);
+    // const highPass45Right = new HighPassFilter45Hz(500);
 
     function processSample(dataView) {
       if (dataView.byteLength !== SINGLE_SAMPLE_LEN) return;
@@ -758,8 +819,8 @@
       const rawEMGRight = dataView.getInt16(5, false);
 
       // Apply 45Hz high-pass filter
-      const filteredEMGLeft = highPass45Left.process(rawEMGLeft);
-      const filteredEMGRight = highPass45Right.process(rawEMGRight);
+      const filteredEMGLeft = EMGFilterLeft.process(rawEMGLeft);
+      const filteredEMGRight = EMGFilterRight.process(rawEMGRight);
 
 
       // Apply envelope detection
@@ -774,38 +835,27 @@
 
       console.log(
         "rawL:", rawEMGLeft,
-        "filteredL:", filteredEMGLeft.toFixed(2),
-        "envL:", envLeft.toFixed(2),
+        "filteredL:", filteredEMGLeft,
+        "envL:", envLeft,
         "| rawR:", rawEMGRight,
         "filteredR:", filteredEMGRight.toFixed(2),
         "envR:", envRight.toFixed(2)
       );
 
-
-      console.log("envLeft:", envLeft.toFixed(2), "envRight:", envRight.toFixed(2));
-
-      // Normalize real-time envelope values based on calibrated max
-      const normEnvLeft = envLeft / emgLeftMaxRef;
-      const normEnvRight = envRight / emgRightMaxRef;
-
-      // Compare using fixed threshold % (like 70%)
-      const normLeft = normEnvLeft;
-      const normRight = normEnvRight;
-
-      if (normLeft > emgLeftThreshold && normLeft > normRight) {
+      if (envLeft > 100 && envLeft > envRight) {
         player.dx = -player.speed;
-      } else if (normRight > emgRightThreshold && normRight > normLeft) {
+      } else if (envRight > 100 && envRight > envLeft) {
         player.dx = player.speed;
       } else {
         player.dx = 0;
       }
 
       // Optional log
-      console.log(
-        `envL: ${envLeft.toFixed(2)} (${(normEnvLeft * 100).toFixed(2)}%)`,
-        `envR: ${envRight.toFixed(2)} (${(normEnvRight * 100).toFixed(2)}%)`,
-        `→ dx: ${player.dx}`
-      );
+      // console.log(
+      //   `envL: ${envLeft.toFixed(2)} (${(normEnvLeft * 100).toFixed(2)}%)`,
+      //   `envR: ${envRight.toFixed(2)} (${(normEnvRight * 100).toFixed(2)}%)`,
+      //   `→ dx: ${player.dx}`
+      // );
 
     }
 
