@@ -7,20 +7,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-
-
 </head>
 
 <body>
+  <!-- Show actual game interface immediately -->
   <div id="mainContainer">
-
     <div id="contentContainer">
       <!-- Left column: Game -->
       <div id="gameSection">
         <canvas id="gameCanvas"></canvas>
       </div>
 
-      <!-- Settings Button -->
+      <!-- Settings Button - Always visible -->
       <button id="settingsBtn" title="Settings"><i class="fas fa-cog"></i></button>
 
       <!-- Settings Modal -->
@@ -347,7 +345,7 @@
        * @returns {number} Filtered output
        */
       process(input) {
-        // Compute the new state variable
+       
         // (coefficients for 500 Hz sampling, 70 Hz center)
         this.x1 = input - (-0.82523238 * this.z1) - (0.29463653 * this.z2);
 
@@ -388,24 +386,6 @@
     // Create envelope filters for each EMG channel
     const envelopeFilterLeft = new EnvelopeFilter(64);
     const envelopeFilterRight = new EnvelopeFilter(64);
-
-    // // Player spaceship
-    // const player = {
-    //   x: gameCanvas.width / 2,
-    //   y: gameCanvas.height - 150,
-    //   speed: 5,
-    //   dx: 0,
-    //   dy: 0,
-    //   width: 50,
-    //   height: 50
-    // };
-    // const spaceshipImg = new Image();
-    // spaceshipImg.src = "assets/spaceship.png";  // Ensure spaceship.png is in the correct folder
-    // spaceshipImg.onload = () => {
-    //   const aspectRatio = spaceshipImg.width / spaceshipImg.height;
-    //   player.width = 250;
-    //   player.height = player.width / aspectRatio;
-    // };
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "ArrowLeft") player.dx = -player.speed;
@@ -655,10 +635,22 @@
       gameLoop(lastTime);
     }
 
-    // Replace your existing game initialization
-    // Remove the old: setInterval(spawnEnemy, 2000); and gameLoop();
-    // Replace with:
+  // Resize canvas to match layout
+resizeGameCanvas();
+
+// Set up background before game loop starts
+updateNebulaColors();     // sets color values
+updateBackground();       // applies motion if you use it
+drawBackground();         // draws dark galaxy gradient
+
+// Draw static frame of game
+if (player) drawPlayer();
+if (enemies) drawEnemies();
+if (bullets) drawBullets();
+
+
     initializeGame();
+
   </script>
 
 
@@ -1099,7 +1091,6 @@
       startBtn.addEventListener("click", startStream);
       stopBtn.addEventListener("click", stopStream);
     };
-
 
   </script>
 
