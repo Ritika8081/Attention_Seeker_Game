@@ -199,6 +199,13 @@
         settingsModal.style.display = 'none';
       }
     });
+    const playerImage = new Image();
+    playerImage.src = "assets/player.png";
+
+    playerImage.onload = () => {
+      initializeGame();
+      gameLoop();
+    };
 
 
     function startCalibration() {
@@ -618,8 +625,16 @@
       });
     }
 
-    // Add event listeners for visibility change
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        gamePaused = true;
+        console.log("🎮 Game Paused - Tab Hidden");
+      } else {
+        gamePaused = false;
+        console.log("🎮 Game Resumed - Tab Focused");
+      }
+    });
+
 
     // Also handle window focus/blur as backup
     window.addEventListener('focus', () => {
