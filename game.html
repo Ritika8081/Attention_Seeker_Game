@@ -46,44 +46,39 @@
           </div>
           <div id="statusText"><i class="fas fa-circle-notch fa-spin"></i> Waiting for connection...</div>
 
+           <hr style="margin: 30px 0; border-color: rgba(255,255,255,0.1);">
+
+          <h2><i class="fas fa-brain"></i> Beta Threshold Control</h2>
+          <div class="threshold-control">
+            <div class="slider-wrapper">
+              <label for="betaThresholdSlider">
+                <i class="fas fa-brain"></i> Beta Threshold:
+              </label>
+              <input type="range" id="betaThresholdSlider" min="0" max="100" step="1" value="40">
+              <span id="betaThresholdValue">40%</span>
+            </div>
+          </div>
+
           <hr style="margin: 30px 0; border-color: rgba(255,255,255,0.1);">
 
-          <h2><i class="fas fa-brain"></i> Beta Threshold Calibration</h2>
+          <h2><i class="fas fa-dumbbell"></i> EMG Threshold Control</h2>
           <div class="threshold-control">
-            <div id="calibrationStatus"><i class="fas fa-hourglass-half"></i> Click to start calibration</div>
-            <div style="margin-top: 10px;">Threshold: <strong id="betaThresholdValue">--</strong></div>
-            <div id="calibrationTimer" style="font-size: 1.5rem; margin-top: 0.5rem;"></div>
-          </div>
-          <button id="calibrateBtn" class="btn" onclick="startCalibration()" style="margin-top: 12px;">
-            <i class="fas fa-sync-alt"></i> Calibrate Now
-          </button>
-
-          <!-- <hr style="margin: 30px 0; border-color: rgba(255,255,255,0.1);">
-
-          <h2><i class="fas fa-dumbbell"></i> EMG Sliders</h2> -->
-          <div class="slider-container" style="display: none;">
-            <div>
-              <div class="container" id="container-left">
-                <div class="slider" id="lower-left"></div>
-              </div>
-              <div class="slider-label"><i class="fas fa-hand-point-left"></i> Left Threshold: <span
-                  id="leftEMGThresholdValue">--</span></div>
+            <div class="slider-wrapper">
+              <label for="emgLeftThresholdSlider">
+                <i class="fas fa-hand-point-left"></i> Left EMG Threshold:
+              </label>
+              <input type="range" id="emgLeftThresholdSlider" min="0" max="500" step="10" value="100">
+              <span id="emgLeftThresholdValue">100</span>
             </div>
-            <div>
-              <div class="container" id="container-right">
-                <div class="slider" id="lower-right"></div>
-              </div>
-              <div class="slider-label"><i class="fas fa-hand-point-right"></i> Right Threshold: <span
-                  id="rightEMGThresholdValue">--</span></div>
+            <div class="slider-wrapper">
+              <label for="emgRightThresholdSlider">
+                <i class="fas fa-hand-point-right"></i> Right EMG Threshold:
+              </label>
+              <input type="range" id="emgRightThresholdSlider" min="0" max="500" step="10" value="100">
+              <span id="emgRightThresholdValue">100</span>
             </div>
           </div>
-          <div style="margin-top: 1rem; display: none;">
-            <div id="emgCalibrationStatus"><i class="fas fa-info-circle"></i> Click below to calibrate</div>
-            <div id="emgCalibrationTimer" style="font-weight: bold; margin: 6px 0;"></div>
-            <button onclick="startEMGCalibration()" class="btn" style="margin-top: 8px;">
-              <i class="fas fa-bolt"></i> Calibrate EMG
-            </button>
-          </div>
+
           <div id="output" class="threshold-output"></div>
         </div>
       </div>
@@ -148,19 +143,15 @@
     let emgLeftMaxRef = 1;
     let emgRightMaxRef = 1;
 
-
-    let betaBuffer = [];
-    let isCalibrating = false;
-    let betaThreshold = 0.4;
-    let calibrationInterval = null;
-    let calibrationStartTime = null;
-    let isEMGCalibrating = false;
-    let emgLeftBuffer = [];
-    let emgRightBuffer = [];
+    let betaThreshold = 40; // Changed from 0.4 to 40 for percentage
+    // Remove EMG calibration variables
+    // let isEMGCalibrating = false;
+    // let emgLeftBuffer = [];
+    // let emgRightBuffer = [];
     const settingsBtn = document.getElementById('settingsBtn');
     const settingsModal = document.getElementById('settingsModal');
     const closeModal = document.querySelector('.close-modal');
-    let emgLeftThreshold = 100;
+    let emgLeftThreshold = 100;  // Default threshold values
     let emgRightThreshold = 100;
     let envLeft = 0;
     let envRight = 0;
@@ -200,41 +191,37 @@
       }
     });
   
+    window.addEventListener('load', () => {
+      // Beta threshold slider
+      const betaThresholdSlider = document.getElementById('betaThresholdSlider');
+      const betaThresholdValue = document.getElementById('betaThresholdValue');
+      
+      betaThresholdSlider.addEventListener('input', (e) => {
+        betaThreshold = parseFloat(e.target.value);
+        betaThresholdValue.textContent = betaThreshold + '%';
+        console.log('Beta threshold set to:', betaThreshold + '%');
+      });
 
+      // EMG Left threshold slider
+      const emgLeftThresholdSlider = document.getElementById('emgLeftThresholdSlider');
+      const emgLeftThresholdValueSpan = document.getElementById('emgLeftThresholdValue');
+      
+      emgLeftThresholdSlider.addEventListener('input', (e) => {
+        emgLeftThreshold = parseFloat(e.target.value);
+        emgLeftThresholdValueSpan.textContent = emgLeftThreshold;
+        console.log('EMG Left threshold set to:', emgLeftThreshold);
+      });
 
-    function startCalibration() {
-      betaBuffer = [];
-      isCalibrating = true;
-      document.getElementById('calibrationStatus').innerHTML = `<i class="fas fa-spinner fa-spin"></i> Calibrating...`;
-      document.getElementById('betaThresholdValue').textContent = "--";
-
-      let secondsLeft = 5;
-      const timerDisplay = document.getElementById('calibrationTimer');
-      timerDisplay.textContent = `${secondsLeft}s`;
-
-      const countdown = setInterval(() => {
-        secondsLeft--;
-        if (secondsLeft > 0) {
-          timerDisplay.textContent = `${secondsLeft}s`;
-        } else {
-          clearInterval(countdown);
-          timerDisplay.textContent = '';
-        }
-      }, 1000);
-
-      setTimeout(() => {
-        isCalibrating = false;
-        if (betaBuffer.length > 0) {
-          const max = Math.max(...betaBuffer);
-          betaThreshold = max * 0.7;
-          document.getElementById('betaThresholdValue').textContent = betaThreshold.toFixed(3);
-          document.getElementById('calibrationStatus').innerHTML = `<i class="fas fa-check-circle"></i> Calibrated`;
-        } else {
-          document.getElementById('betaThresholdValue').textContent = "0.000";
-          document.getElementById('calibrationStatus').innerHTML = `<i class="fas fa-exclamation-triangle"></i> No beta data`;
-        }
-      }, 5000);
-    }
+      // EMG Right threshold slider
+      const emgRightThresholdSlider = document.getElementById('emgRightThresholdSlider');
+      const emgRightThresholdValueSpan = document.getElementById('emgRightThresholdValue');
+      
+      emgRightThresholdSlider.addEventListener('input', (e) => {
+        emgRightThreshold = parseFloat(e.target.value);
+        emgRightThresholdValueSpan.textContent = emgRightThreshold;
+        console.log('EMG Right threshold set to:', emgRightThreshold);
+      });
+    });
 
     function updateBackground() {
       stars.forEach(star => {
@@ -246,41 +233,7 @@
       });
 
     }
-    function startEMGCalibration() {
-      emgLeftBuffer.length = 0;
-      emgRightBuffer.length = 0;
-      isEMGCalibrating = true;
-
-      document.getElementById('emgCalibrationStatus').innerHTML = `<i class="fas fa-spinner fa-spin"></i> Calibrating...`;
-
-      setTimeout(() => {
-        isEMGCalibrating = false;
-
-        if (emgLeftBuffer.length && emgRightBuffer.length) {
-          emgLeftMaxRef = Math.max(...emgLeftBuffer);
-          emgRightMaxRef = Math.max(...emgRightBuffer);
-
-          emgLeftThreshold = 0.7;  // 70% of max effort
-          emgRightThreshold = 0.7;
-
-          document.getElementById('leftEMGThresholdValue').textContent = (emgLeftThreshold * 100).toFixed(2) + '%';
-          document.getElementById('rightEMGThresholdValue').textContent = (emgRightThreshold * 100).toFixed(2) + '%';
-          document.getElementById('emgCalibrationStatus').innerHTML = `<i class="fas fa-check-circle"></i> Calibrated`;
-
-          console.log("🎯 EMG Calibration Summary:");
-          console.log(`Left max: ${emgLeftMaxRef.toFixed(2)} → Threshold: 70%`);
-          console.log(`Right max: ${emgRightMaxRef.toFixed(2)} → Threshold: 70%`);
-        } else {
-          document.getElementById('leftEMGThresholdValue').textContent = "--";
-          document.getElementById('rightEMGThresholdValue').textContent = "--";
-          document.getElementById('emgCalibrationStatus').innerHTML = `<i class="fas fa-exclamation-triangle"></i> No EMG data`;
-        }
-
-        emgLeftBuffer.length = 0;
-        emgRightBuffer.length = 0;
-      }, 5000);
-    }
-
+    
     // Nebula effect
     let nebulaColor1 = { r: 50, g: 0, b: 150 };
     let nebulaColor2 = { r: 0, g: 0, b: 100 };
@@ -862,11 +815,7 @@
 
       const normalizedBeta = Math.min(100, betaRel * 100);  // between 0–100
 
-      if (isCalibrating) {
-        betaBuffer.push(normalizedBeta);
-        console.log("Captured Beta %:", normalizedBeta.toFixed(2));
-      }
-
+    
       console.log("β-rel:", betaRel.toFixed(3), "Threshold:", betaThreshold.toFixed(3));
 
       // Focus shooting using dynamic threshold
@@ -874,7 +823,6 @@
         console.log("🔥 Fire! β %:", normalizedBeta.toFixed(2), "≥", betaThreshold.toFixed(2));
         if (typeof window.shootBullet === 'function') window.shootBullet();
       }
-
 
     }
 
@@ -955,6 +903,7 @@
       const filteredEEG = applyFilter(normEEG, filterStateCh0);
       updateData(filteredEEG, filteredEEG);
       samplesReceived++;
+      
       // Read EMG data from BLE device
       const rawEMGLeft = dataView.getInt16(3, false);
       const rawEMGRight = dataView.getInt16(5, false);
@@ -963,41 +912,38 @@
       const filteredEMGLeft = EMGFilterLeft.process(rawEMGLeft);
       const filteredEMGRight = EMGFilterRight.process(rawEMGRight);
 
-
       // Apply envelope detection
       const envLeft = envelopeFilterLeft.getEnvelope(Math.abs(filteredEMGLeft));
       const envRight = envelopeFilterRight.getEnvelope(Math.abs(filteredEMGRight));
 
 
-      if (isEMGCalibrating) {
-        emgLeftBuffer.push(envLeft);
-        emgRightBuffer.push(envRight);
-      }
+      // Remove calibration data collection
+      // if (isEMGCalibrating) {
+      //   emgLeftBuffer.push(envLeft);
+      //   emgRightBuffer.push(envRight);
+      // }
 
       console.log(
         "rawL:", rawEMGLeft,
-        "filteredL:", filteredEMGLeft,
-        "envL:", envLeft,
+        "filteredL:", filteredEMGLeft.toFixed(2),
+        "envL:", envLeft.toFixed(2),
+        "threshL:", emgLeftThreshold,
         "| rawR:", rawEMGRight,
         "filteredR:", filteredEMGRight.toFixed(2),
-        "envR:", envRight.toFixed(2)
+        "envR:", envRight.toFixed(2),
+        "threshR:", emgRightThreshold
       );
 
-      if (envLeft > 100 && envLeft > envRight) {
+      // Use slider thresholds for EMG control
+      if (envLeft > emgLeftThreshold && envLeft > envRight) {
         player.dx = -player.speed;
-      } else if (envRight > 100 && envRight > envLeft) {
+        console.log("🏃 Moving LEFT - envL:", envLeft.toFixed(2), "> threshold:", emgLeftThreshold);
+      } else if (envRight > emgRightThreshold && envRight > envLeft) {
         player.dx = player.speed;
+        console.log("🏃 Moving RIGHT - envR:", envRight.toFixed(2), "> threshold:", emgRightThreshold);
       } else {
         player.dx = 0;
       }
-
-      // Optional log
-      // console.log(
-      //   `envL: ${envLeft.toFixed(2)} (${(normEnvLeft * 100).toFixed(2)}%)`,
-      //   `envR: ${envRight.toFixed(2)} (${(normEnvRight * 100).toFixed(2)}%)`,
-      //   `→ dx: ${player.dx}`
-      // );
-
     }
 
 
@@ -1074,29 +1020,6 @@
           updateButtonStates();
         } catch (err) {
           console.error("Disconnect error:", err);
-        }
-      }
-
-      async function startStream() {
-        try {
-          await controlChar.writeValue(new TextEncoder().encode("START"));
-          await dataChar.startNotifications();
-          dataChar.addEventListener("characteristicvaluechanged", handleNotification);
-          streaming = true;
-          updateButtonStates();
-        } catch (err) {
-          alert("Failed to start streaming: " + err.message);
-        }
-      }
-
-      async function stopStream() {
-        try {
-          await dataChar.stopNotifications();
-          dataChar.removeEventListener("characteristicvaluechanged", handleNotification);
-          streaming = false;
-          updateButtonStates();
-        } catch (err) {
-          console.error("Stop error:", err);
         }
       }
 
