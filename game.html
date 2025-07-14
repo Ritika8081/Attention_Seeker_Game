@@ -46,7 +46,7 @@
           </div>
           <div id="statusText"><i class="fas fa-circle-notch fa-spin"></i> Waiting for connection...</div>
 
-           <hr style="margin: 30px 0; border-color: rgba(255,255,255,0.1);">
+          <hr style="margin: 30px 0; border-color: rgba(255,255,255,0.1);">
 
           <h2><i class="fas fa-brain"></i> Beta Threshold Control</h2>
           <div class="threshold-control">
@@ -67,15 +67,26 @@
               <label for="emgLeftThresholdSlider">
                 <i class="fas fa-hand-point-left"></i> Left EMG Threshold:
               </label>
-              <input type="range" id="emgLeftThresholdSlider" min="0" max="500" step="10" value="100">
-              <span id="emgLeftThresholdValue">100</span>
+              <input type="range" id="emgLeftThresholdSlider" min="0" max="1000" step="5" value="50">
+              <span id="emgLeftThresholdValue">50</span>
             </div>
             <div class="slider-wrapper">
               <label for="emgRightThresholdSlider">
                 <i class="fas fa-hand-point-right"></i> Right EMG Threshold:
               </label>
-              <input type="range" id="emgRightThresholdSlider" min="0" max="500" step="10" value="100">
-              <span id="emgRightThresholdValue">100</span>
+              <input type="range" id="emgRightThresholdSlider" min="0" max="1000" step="5" value="50">
+              <span id="emgRightThresholdValue">50</span>
+            </div>
+
+            <!-- Add real-time EMG value display -->
+            <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+              <div style="color: #00d4ff; font-size: 0.9rem;">
+                <i class="fas fa-chart-line"></i> Live EMG Values:
+              </div>
+              <div style="display: flex; gap: 20px; margin-top: 5px;">
+                <span>Left: <strong id="emgLeftLive">--</strong></span>
+                <span>Right: <strong id="emgRightLive">--</strong></span>
+              </div>
             </div>
           </div>
 
@@ -102,68 +113,153 @@
       height: 50
     };
 
+    // Preload spaceship image with immediate fallback
     const spaceshipImg = new Image();
     spaceshipImg.src = "assets/spaceship.png";
 
-    function setPlayerPosition() {
-      // Center horizontally
-      player.x = (gameCanvas.width - player.width) / 2;
-      // Position near bottom with some padding
-      player.y = gameCanvas.height - player.height - 80;
+    // Track if image is loaded
+    let spaceshipImageLoaded = false;
+
+    // Initialize game immediately without waiting
+    function initializeGameImmediately() {
+      resizeGameCanvas();
+      drawInitialFrame();
+      initializeGame();
     }
 
-    function resizeGameCanvas() {
-      gameCanvas.width = window.innerWidth;
-      gameCanvas.height = window.innerHeight;
+    // Draw initial frame with fallback
+    function drawInitialFrame() {
+      gctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+      updateNebulaColors();
+      updateBackground();
+      drawBackground();
+      drawPlayer();
+      if (enemies.length > 0) drawEnemies();
+      if (bullets.length > 0) drawBullets();
+    }
 
-      // Responsive spaceship sizing
-      const baseWidth = Math.min(250, gameCanvas.width * 0.12); // 12% of screen width
-      player.width = baseWidth;
-
-      if (spaceshipImg.complete && spaceshipImg.naturalWidth > 0) {
-        const aspectRatio = spaceshipImg.width / spaceshipImg.height;
-        player.height = player.width / aspectRatio;
+    // Updated drawPlayer with immediate fallback
+    function drawPlayer() {
+      if (spaceshipImg.complete && spaceshipImg.naturalWidth > 0 && spaceshipImageLoaded) {
+        gctx.drawImage(spaceshipImg, player.x, player.y, player.width, player.height);
       } else {
-        player.height = baseWidth; // Fallback square ratio
-      }
+        // Immediate fallback - draw a triangle spaceship
+        gctx.fillStyle = '#00d4ff';
+        gctx.beginPath();
+        gctx.moveTo(player.x + player.width / 2, player.y); // Top point
+        gctx.lineTo(player.x, player.y + player.height); // Bottom left
+        gctx.lineTo(player.x + player.width, player.y + player.height); // Bottom right
+        gctx.closePath();
+        gctx.fill();
 
-      setPlayerPosition();
+        // Add a glow effect
+        gctx.strokeStyle = '#64ffda';
+        gctx.lineWidth = 2;
+        gctx.stroke();
+      }
     }
 
+    // Handle image loading in background
     spaceshipImg.onload = () => {
       const aspectRatio = spaceshipImg.width / spaceshipImg.height;
       player.height = player.width / aspectRatio;
       setPlayerPosition();
+      spaceshipImageLoaded = true;
+      console.log("✅ Spaceship image loaded successfully");
     };
 
-    // Initialize and handle resize
-    window.addEventListener("resize", resizeGameCanvas);
-    resizeGameCanvas();
+    // Handle image loading error
+    spaceshipImg.onerror = () => {
+      console.log("⚠️ Spaceship image failed to load - using fallback");
+      spaceshipImageLoaded = false;
+    };
+
+    // Also preload asteroid images
+    const asteroidImages = [];
+    let asteroidImagesLoaded = 0;
+    const totalAsteroidImages = 14;
+
+    for (let i = 1; i <= totalAsteroidImages; i++) {
+      const img = new Image();
+      img.src = `assets/asteroids/asteroid${i}.png`;
+      img.onload = () => {
+        asteroidImagesLoaded++;
+        if (asteroidImagesLoaded === totalAsteroidImages) {
+          console.log("✅ All asteroid images loaded");
+        }
+      };
+      img.onerror = () => {
+        console.log(`⚠️ Asteroid image ${i} failed to load`);
+      };
+      asteroidImages.push(img);
+    }
+
+    // Updated drawEnemies with fallback
+    function drawEnemies() {
+      enemies.forEach(enemy => {
+        if (enemy.image && enemy.image.complete && enemy.image.naturalWidth > 0) {
+          gctx.drawImage(enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
+        } else {
+          // Fallback - draw a red diamond
+          gctx.fillStyle = "#ff4444";
+          gctx.beginPath();
+          gctx.moveTo(enemy.x + enemy.width / 2, enemy.y); // Top
+          gctx.lineTo(enemy.x + enemy.width, enemy.y + enemy.height / 2); // Right
+          gctx.lineTo(enemy.x + enemy.width / 2, enemy.y + enemy.height); // Bottom
+          gctx.lineTo(enemy.x, enemy.y + enemy.height / 2); // Left
+          gctx.closePath();
+          gctx.fill();
+
+          // Add border
+          gctx.strokeStyle = "#ff8888";
+          gctx.lineWidth = 2;
+          gctx.stroke();
+        }
+      });
+    }
+
+    // Initialize game immediately when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log("🎮 Initializing game immediately...");
+
+      // Set initial canvas size
+      resizeGameCanvas();
+
+      // Draw initial frame
+      drawInitialFrame();
+
+      // Start game
+      initializeGame();
+    });
+
+    // Remove the old spaceshipImg.onload initialization:
+    // Comment out or remove this block:
+    /*
+    spaceshipImg.onload = () => {
+      const aspectRatio = spaceshipImg.width / spaceshipImg.height;
+      player.height = player.width / aspectRatio;
+      setPlayerPosition();
+      resizeGameCanvas();
+      initializeGame();
+    };
+    */
 
     let emgLeftMaxRef = 1;
     let emgRightMaxRef = 1;
 
     let betaThreshold = 40; // Changed from 0.4 to 40 for percentage
-    // Remove EMG calibration variables
-    // let isEMGCalibrating = false;
-    // let emgLeftBuffer = [];
-    // let emgRightBuffer = [];
+
     const settingsBtn = document.getElementById('settingsBtn');
     const settingsModal = document.getElementById('settingsModal');
     const closeModal = document.querySelector('.close-modal');
-    let emgLeftThreshold = 100;  // Default threshold values
-    let emgRightThreshold = 100;
+    let emgLeftThreshold = 50;   // Lower default threshold
+    let emgRightThreshold = 50;  // Lower default threshold
     let envLeft = 0;
     let envRight = 0;
     const EMG_MAX_REF = 3000; // Can be adjusted based on your signal amplitude
 
     // Preload custom asteroid images (asteroid1.png ... asteroid14.png)
-    const asteroidImages = [];
-    for (let i = 1; i <= 14; i++) {
-      const img = new Image();
-      img.src = `assets/asteroids/asteroid${i}.png`;
-      asteroidImages.push(img);
-    }
+    // (Already declared and loaded above, so this block is removed)
 
     // Background objects (stars, planets)
     const stars = [];
@@ -190,12 +286,12 @@
         settingsModal.style.display = 'none';
       }
     });
-  
+
     window.addEventListener('load', () => {
       // Beta threshold slider
       const betaThresholdSlider = document.getElementById('betaThresholdSlider');
       const betaThresholdValue = document.getElementById('betaThresholdValue');
-      
+
       betaThresholdSlider.addEventListener('input', (e) => {
         betaThreshold = parseFloat(e.target.value);
         betaThresholdValue.textContent = betaThreshold + '%';
@@ -205,7 +301,7 @@
       // EMG Left threshold slider
       const emgLeftThresholdSlider = document.getElementById('emgLeftThresholdSlider');
       const emgLeftThresholdValueSpan = document.getElementById('emgLeftThresholdValue');
-      
+
       emgLeftThresholdSlider.addEventListener('input', (e) => {
         emgLeftThreshold = parseFloat(e.target.value);
         emgLeftThresholdValueSpan.textContent = emgLeftThreshold;
@@ -215,7 +311,7 @@
       // EMG Right threshold slider
       const emgRightThresholdSlider = document.getElementById('emgRightThresholdSlider');
       const emgRightThresholdValueSpan = document.getElementById('emgRightThresholdValue');
-      
+
       emgRightThresholdSlider.addEventListener('input', (e) => {
         emgRightThreshold = parseFloat(e.target.value);
         emgRightThresholdValueSpan.textContent = emgRightThreshold;
@@ -233,7 +329,7 @@
       });
 
     }
-    
+
     // Nebula effect
     let nebulaColor1 = { r: 50, g: 0, b: 150 };
     let nebulaColor2 = { r: 0, g: 0, b: 100 };
@@ -364,8 +460,22 @@
     }
 
     function drawPlayer() {
-      if (spaceshipImg.complete) {
+      if (spaceshipImg.complete && spaceshipImg.naturalWidth > 0 && spaceshipImageLoaded) {
         gctx.drawImage(spaceshipImg, player.x, player.y, player.width, player.height);
+      } else {
+        // Immediate fallback - draw a triangle spaceship
+        gctx.fillStyle = '#00d4ff';
+        gctx.beginPath();
+        gctx.moveTo(player.x + player.width / 2, player.y); // Top point
+        gctx.lineTo(player.x, player.y + player.height); // Bottom left
+        gctx.lineTo(player.x + player.width, player.y + player.height); // Bottom right
+        gctx.closePath();
+        gctx.fill();
+
+        // Add a glow effect
+        gctx.strokeStyle = '#64ffda';
+        gctx.lineWidth = 2;
+        gctx.stroke();
       }
     }
 
@@ -396,18 +506,35 @@
 
     function updateEnemies() {
       enemies.forEach((enemy, i) => {
-        enemy.y += enemy.speed;
-        if (enemy.y > gameCanvas.height) enemies.splice(i, 1);
+        if (gameRunning && isPageVisible) {
+          enemy.y += enemy.speed;
+
+          // Remove enemies that are off screen
+          if (enemy.y > gameCanvas.height + enemy.height) {
+            enemies.splice(i, 1);
+          }
+        }
       });
     }
     function drawEnemies() {
       enemies.forEach(enemy => {
-        if (enemy.image && enemy.image.complete) {
+        if (enemy.image && enemy.image.complete && enemy.image.naturalWidth > 0) {
           gctx.drawImage(enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
         } else {
-          // Fallback if image not loaded yet
-          gctx.fillStyle = "red";
-          gctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+          // Fallback - draw a red diamond
+          gctx.fillStyle = "#ff4444";
+          gctx.beginPath();
+          gctx.moveTo(enemy.x + enemy.width / 2, enemy.y); // Top
+          gctx.lineTo(enemy.x + enemy.width, enemy.y + enemy.height / 2); // Right
+          gctx.lineTo(enemy.x + enemy.width / 2, enemy.y + enemy.height); // Bottom
+          gctx.lineTo(enemy.x, enemy.y + enemy.height / 2); // Left
+          gctx.closePath();
+          gctx.fill();
+
+          // Add border
+          gctx.strokeStyle = "#ff8888";
+          gctx.lineWidth = 2;
+          gctx.stroke();
         }
       });
     }
@@ -428,8 +555,14 @@
 
     function updateBullets() {
       bullets.forEach((bullet, i) => {
-        bullet.y -= bullet.speed;
-        if (bullet.y < 0) bullets.splice(i, 1);
+        if (gameRunning && isPageVisible) {
+          bullet.y -= bullet.speed;
+
+          // Remove bullets that are off screen
+          if (bullet.y < -bullet.height) {
+            bullets.splice(i, 1);
+          }
+        }
       });
     }
     function drawBullets() {
@@ -572,53 +705,160 @@
       });
     }
 
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        gamePaused = true;
-        console.log("🎮 Game Paused - Tab Hidden");
+    // Missing variables
+    let selectedChannel = "all"; // Default to show all channels
+    let gain = 1; // Default gain value
+    let gamePaused = false; // Missing variable
+
+    // Missing function: setPlayerPosition
+    function setPlayerPosition() {
+      player.x = (gameCanvas.width - player.width) / 2;
+      player.y = gameCanvas.height - player.height - 20;
+    }
+
+    // Missing function: resizeGameCanvas
+    function resizeGameCanvas() {
+      gameCanvas.width = window.innerWidth;
+      gameCanvas.height = window.innerHeight;
+
+      // Responsive spaceship sizing
+      const baseWidth = Math.min(250, gameCanvas.width * 0.12); // 12% of screen width
+      player.width = baseWidth;
+
+      if (spaceshipImg.complete && spaceshipImg.naturalWidth > 0) {
+        const aspectRatio = spaceshipImg.width / spaceshipImg.height;
+        player.height = player.width / aspectRatio;
       } else {
-        gamePaused = false;
-        console.log("🎮 Game Resumed - Tab Focused");
+        player.height = baseWidth; // Fallback square ratio
       }
+
+      setPlayerPosition();
+
+      // Update background objects for new canvas size
+      updateStarsForNewSize();
+    }
+
+    // Function to update stars when canvas resizes
+    function updateStarsForNewSize() {
+      // Update existing stars to fit new canvas size
+      stars.forEach(star => {
+        if (star.x > gameCanvas.width) star.x = Math.random() * gameCanvas.width;
+        if (star.y > gameCanvas.height) star.y = Math.random() * gameCanvas.height;
+      });
+
+      // Add more stars if canvas got bigger
+      while (stars.length < Math.min(200, gameCanvas.width * gameCanvas.height / 10000)) {
+        stars.push({
+          x: Math.random() * gameCanvas.width,
+          y: Math.random() * gameCanvas.height,
+          radius: Math.random() * 2 + 1,
+          speed: Math.random() * 2 + 0.5
+        });
+      }
+    }
+
+    // Add window resize listener
+    window.addEventListener("resize", resizeGameCanvas);
+
+    // Fix the duplicate updateEnemies function - remove one of them
+    // Keep only this version:
+    function updateEnemies() {
+      enemies.forEach((enemy, i) => {
+        if (gameRunning && isPageVisible) {
+          enemy.y += enemy.speed;
+
+          // Remove enemies that are off screen
+          if (enemy.y > gameCanvas.height + enemy.height) {
+            enemies.splice(i, 1);
+          }
+        }
+      });
+    }
+
+    // Remove the duplicate updateBullets function - keep only this version:
+    function updateBullets() {
+      bullets.forEach((bullet, i) => {
+        if (gameRunning && isPageVisible) {
+          bullet.y -= bullet.speed;
+
+          // Remove bullets that are off screen
+          if (bullet.y < -bullet.height) {
+            bullets.splice(i, 1);
+          }
+        }
+      });
+    }
+
+    // Remove the duplicate drawWaveform function
+    // Keep only the version in the EEG section
+
+    // Fix the drawWaveform function to handle missing variables
+    function drawWaveform() {
+      if (!plotCanvas || !plotCtx) return; // Safety check
+
+      plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
+
+      function drawChannel(data, color) {
+        plotCtx.strokeStyle = color;
+        plotCtx.lineWidth = 2;
+        plotCtx.beginPath();
+        for (let i = 0; i < data.length; i++) {
+          const x = (i / (data.length - 1)) * plotCanvas.width;
+          const y = plotCanvas.height / 2 - (data[i] * gain * (plotCanvas.height / 2));
+          if (i === 0) plotCtx.moveTo(x, y);
+          else plotCtx.lineTo(x, y);
+        }
+        plotCtx.stroke();
+      }
+
+      // Use default channel if selectedChannel is not defined
+      const channel = selectedChannel || "all";
+
+      if (channel === "all" || channel === "ch0") {
+        drawChannel(dataCh0, "cyan");
+      }
+      if (channel === "all" || channel === "ch1") {
+        drawChannel(dataCh1, "lime");
+      }
+
+      requestAnimationFrame(drawWaveform);
+    }
+
+    // Remove the duplicate initializeGame function and spaceshipImg.onload
+    // Keep only this clean version:
+
+    // Initialize game immediately when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log("🎮 Initializing game immediately...");
+
+      // Set initial canvas size
+      resizeGameCanvas();
+
+      // Draw initial frame
+      drawInitialFrame();
+
+      // Start game
+      initializeGame();
     });
 
+    // Handle spaceship image loading in background
+    spaceshipImg.onload = () => {
+      const aspectRatio = spaceshipImg.width / spaceshipImg.height;
+      player.height = player.width / aspectRatio;
+      setPlayerPosition();
+      spaceshipImageLoaded = true;
+      console.log("✅ Spaceship image loaded successfully");
+    };
 
-    // Also handle window focus/blur as backup
-    window.addEventListener('focus', () => {
-      if (!isPageVisible) resumeGame();
-    });
+    // Fix visibility change handlers - remove duplicates
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    window.addEventListener('blur', () => {
-      if (isPageVisible) pauseGame();
-    });
-
-    // Initialize the game properly
+    // Add the missing initializeGame function
     function initializeGame() {
       lastTime = performance.now();
       startEnemySpawning();
       gameLoop(lastTime);
     }
-
-    window.addEventListener("load", () => {
-      resizeGameCanvas();
-      initializeGame();
-
-      // Draw first static frame
-      updateNebulaColors();
-      updateBackground();
-      drawBackground();
-      drawPlayer();
-      drawEnemies();
-      drawBullets();
-
-      // ✅ Start the game loop immediately
-      gameLoop();
-
-      // ✅ Hide the loading overlay
-      const overlay = document.querySelector(".loading-overlay");
-      if (overlay) overlay.classList.add("hidden");
-    });
-
   </script>
 
 
@@ -681,20 +921,6 @@
     let filterStateCh0 = { z1: 0, z2: 0, x1: 0 };
     let filterStateCh1 = { z1: 0, z2: 0, x1: 0 };
 
-    let gain = 1;
-    const gainSlider = document.getElementById("gainSlider");
-    gainSlider.disabled = true;  // disable until connected
-    gainSlider.addEventListener("input", (e) => {
-      gain = parseFloat(e.target.value);
-    });
-
-    let selectedChannel = "all";
-    const channelSelector = document.getElementById("channelSelector");
-    channelSelector.disabled = true;
-    channelSelector.addEventListener("change", (e) => {
-      selectedChannel = e.target.value;
-    });
-
     let width = plotCanvas.width, height = plotCanvas.height;
     window.addEventListener("resize", () => {
       width = plotCanvas.width; height = plotCanvas.height;
@@ -734,6 +960,7 @@
           this.sinTable[i] = Math.sin(-2 * Math.PI * i / size);
         }
       }
+
       computeMagnitudes(input) {
         const real = new Float32Array(this.size);
         const imag = new Float32Array(this.size);
@@ -791,7 +1018,6 @@
       return power;
     }
 
-
     let buffer_size = 128;
     let circular_buffer = new Array(buffer_size).fill(0);
     let data_index = 0, sum = 0;
@@ -812,10 +1038,8 @@
       const betaRel = getSmoothedBeta(betaP / total);
       const gammaRel = gammaP / total;
 
-
       const normalizedBeta = Math.min(100, betaRel * 100);  // between 0–100
 
-    
       console.log("β-rel:", betaRel.toFixed(3), "Threshold:", betaThreshold.toFixed(3));
 
       // Focus shooting using dynamic threshold
@@ -837,7 +1061,10 @@
     }
 
     function drawWaveform() {
+      if (!plotCanvas || !plotCtx) return; // Safety check
+
       plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
+
       function drawChannel(data, color) {
         plotCtx.strokeStyle = color;
         plotCtx.lineWidth = 2;
@@ -850,12 +1077,17 @@
         }
         plotCtx.stroke();
       }
-      if (selectedChannel === "all" || selectedChannel === "ch0") {
+
+      // Use default channel if selectedChannel is not defined
+      const channel = selectedChannel || "all";
+
+      if (channel === "all" || channel === "ch0") {
         drawChannel(dataCh0, "cyan");
       }
-      if (selectedChannel === "all" || selectedChannel === "ch1") {
+      if (channel === "all" || channel === "ch1") {
         drawChannel(dataCh1, "lime");
       }
+
       requestAnimationFrame(drawWaveform);
     }
     drawWaveform();
@@ -885,25 +1117,19 @@
     let activeSlider = null;
     let currentValues = { left: 50, right: 50 }; // Initial threshold values (50%)
 
-    // Updated processSample: Now reads 3 channels (EEG at offset 1, EMG left at offset 3, EMG right at offset 5)
-    // const highPass45Left = new HighPassFilter45Hz(500);
-    // const highPass45Right = new HighPassFilter45Hz(500);
-
     function processSample(dataView) {
       if (dataView.byteLength !== SINGLE_SAMPLE_LEN) return;
 
       const sampleCounter = dataView.getUint8(0);
       prevSampleCounter = sampleCounter;
-      // Read EEG and EMG channels
       const rawEEG = dataView.getInt16(1, false);
-
 
       // Process EEG as before
       const normEEG = normalizeSample(Math.max(0, Math.min(4095, rawEEG)));
       const filteredEEG = applyFilter(normEEG, filterStateCh0);
       updateData(filteredEEG, filteredEEG);
       samplesReceived++;
-      
+
       // Read EMG data from BLE device
       const rawEMGLeft = dataView.getInt16(3, false);
       const rawEMGRight = dataView.getInt16(5, false);
@@ -916,12 +1142,11 @@
       const envLeft = envelopeFilterLeft.getEnvelope(Math.abs(filteredEMGLeft));
       const envRight = envelopeFilterRight.getEnvelope(Math.abs(filteredEMGRight));
 
-
-      // Remove calibration data collection
-      // if (isEMGCalibrating) {
-      //   emgLeftBuffer.push(envLeft);
-      //   emgRightBuffer.push(envRight);
-      // }
+      // Update live display
+      const emgLeftLive = document.getElementById('emgLeftLive');
+      const emgRightLive = document.getElementById('emgRightLive');
+      if (emgLeftLive) emgLeftLive.textContent = envLeft.toFixed(1);
+      if (emgRightLive) emgRightLive.textContent = envRight.toFixed(1);
 
       console.log(
         "rawL:", rawEMGLeft,
@@ -1020,6 +1245,29 @@
           updateButtonStates();
         } catch (err) {
           console.error("Disconnect error:", err);
+        }
+      }
+
+      async function startStream() {
+        try {
+          await controlChar.writeValue(new TextEncoder().encode("START"));
+          await dataChar.startNotifications();
+          dataChar.addEventListener("characteristicvaluechanged", handleNotification);
+          streaming = true;
+          updateButtonStates();
+        } catch (err) {
+          alert("Failed to start streaming: " + err.message);
+        }
+      }
+
+      async function stopStream() {
+        try {
+          await dataChar.stopNotifications();
+          dataChar.removeEventListener("characteristicvaluechanged", handleNotification);
+          streaming = false;
+          updateButtonStates();
+        } catch (err) {
+          console.error("Stop error:", err);
         }
       }
 
